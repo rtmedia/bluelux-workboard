@@ -104,14 +104,14 @@ class SourceTests(unittest.TestCase):
 
     def test_http_host_and_origin_restrictions(self):
         handler = server.Handler.__new__(server.Handler)
-        handler.server = type('Server', (), {'server_port': 8080})()
+        handler.server = type('Server', (), {'server_port': 43127})()
         responses = []
         handler.send = lambda code, body: responses.append(code)
         for headers, expected in [
-            ({'Host': '127.0.0.1:8080'}, True),
-            ({'Host': 'evil.test:8080'}, False),
-            ({'Host': '127.0.0.1:8080', 'Origin': 'https://evil.test'}, False),
-            ({'Host': '127.0.0.1:8080', 'Sec-Fetch-Site': 'cross-site'}, False),
+            ({'Host': '127.0.0.1:43127'}, True),
+            ({'Host': 'evil.test:43127'}, False),
+            ({'Host': '127.0.0.1:43127', 'Origin': 'https://evil.test'}, False),
+            ({'Host': '127.0.0.1:43127', 'Sec-Fetch-Site': 'cross-site'}, False),
         ]:
             handler.headers = headers
             self.assertEqual(handler.allowed(), expected)
