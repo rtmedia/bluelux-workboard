@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light"><title>Workboard · Your projects</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to work</a>
+  <aside class="sidebar" aria-label="Projects">
+    <a href="/" class="brand"><span class="brand-icon">w</span> Workboard<span class="local-label">LOCAL</span></a>
+    <div class="sidebar-section">CORE PROJECTS</div>
+    <div id="projects"><p class="muted">Reading projects…</p></div><button id="moreProjects" class="text-button more-projects" aria-expanded="false">Other projects</button><div id="otherProjects" hidden></div>
+    <div class="sidebar-bottom"><span class="connection-dot"></span><strong>On this Mac</strong><p>Chats and code, in one place.</p><button id="sourceInfo" class="text-button">About the live sources</button></div>
+  </aside>
+  <main id="main" tabindex="-1">
+    <header class="topbar"><div><span class="eyebrow">YOUR PLACE TO PICK UP</span><h1 id="pageTitle">Your open work</h1><p id="pageSubtitle">See what’s moving and what needs your attention.</p></div><button id="refresh" class="button">↻ <span>Refresh</span></button></header>
+    <div id="banner" role="status" aria-live="polite"></div>
+    <div id="stats" class="stats"></div>
+    <div class="controls"><nav class="tabs" aria-label="Views"><button data-view="overview" class="selected">Workboard</button><button data-view="roadmap">Roadmap</button><button data-view="plans">Library</button><button data-view="chats">Activity</button><button data-view="workspaces">Workspaces</button></nav><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Find an item, document, or chat" aria-label="Find an item, document, or chat"></label></div>
+    <div class="filterbar"><div class="legend"><span class="badge blue">In progress</span><span class="badge amber">Up next</span><span class="badge green">Done</span><span class="badge gray">Deferred</span></div><label class="archive-toggle"><input id="archives" type="checkbox">Include archived chats</label></div>
+    <section id="content" aria-label="Work"><div class="loading"><span class="spinner"></span><h2>Connecting the dots</h2><p>Reading your local chats, projects, and Git checkouts.</p></div></section>
+    <footer id="freshness">Local data stays on this computer.</footer>
+  </main>
+  <dialog id="detail"><div class="drawer-top"><span id="detailType" class="eyebrow">DETAILS</span><button id="closeDetail" class="icon-button" aria-label="Close details">×</button></div><div id="detailBody"></div></dialog>
+</body>
+</html>

@@ -1,0 +1,8 @@
+__pycache__/
+.runtime/
+.DS_Store
+.env
+.env.*
+preview*.jpg
+preview*.png
+*.local.json
