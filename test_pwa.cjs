@@ -7,14 +7,14 @@ const vm = require('node:vm');
   const origin = 'http://127.0.0.1:43127';
   const context = {URL, Promise,
     self:{location:{origin}, addEventListener:(name,cb)=>handlers[name]=cb,skipWaiting:async()=>{},clients:{claim:async()=>{}}},
-    caches:{open:async()=>({addAll:async paths=>added.push(...paths)}), keys:async()=>['unrelated-cache','workboard-recovery-old','workboard-recovery-v1'],delete:async key=>deleted.push(key),match:async path=>{matched.push(path);return recovery}},
+    caches:{open:async()=>({addAll:async paths=>added.push(...paths)}), keys:async()=>['unrelated-cache','workboard-recovery-old','workboard-recovery-v1','workboard-recovery-v2'],delete:async key=>deleted.push(key),match:async path=>{matched.push(path);return recovery}},
     fetch:async()=>{throw Error('Server stopped');}};
   vm.runInNewContext(fs.readFileSync('static/sw.js','utf8'),context);
   let done;
   handlers.install({waitUntil:p=>done=p});await done;
   assert(added.includes('/offline.html'));assert(!added.some(p=>p.startsWith('/api/')));
   handlers.activate({waitUntil:p=>done=p});await done;
-  assert.deepEqual(deleted,['workboard-recovery-old']);
+  assert.deepEqual(deleted,['workboard-recovery-old','workboard-recovery-v1']);
   for(const request of [
     {url:origin+'/api/state',method:'GET',mode:'cors'},
     {url:origin+'/api/refresh',method:'POST',mode:'cors'},
