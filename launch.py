@@ -11,7 +11,7 @@ import webbrowser
 import fcntl
 
 ROOT = Path(__file__).resolve().parent
-URL = 'http://127.0.0.1:8768'
+URL = 'http://127.0.0.1:8080'
 
 
 def running():
@@ -41,7 +41,7 @@ def main():
                 if running():
                     break
                 if child.poll() is not None:
-                    raise SystemExit('Could not start Workboard. Port 8768 may be in use. See .runtime/startup.log.')
+                    raise SystemExit('Could not start Workboard. Port 8080 may be in use. See .runtime/startup.log.')
                 time.sleep(.2)
             else:
                 raise SystemExit('Workboard did not start. See .runtime/startup.log.')

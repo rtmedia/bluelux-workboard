@@ -6,7 +6,7 @@ import re
 LIMIT = 2 * 1024 * 1024
 FILE_CACHE = {}
 SKIP = {'.git', 'node_modules', 'work', 'vendor', '.local', '.gstack', 'archive', 'archives', 'dist', 'build', 'qa-artifacts', 'attached_assets', 'coverage', 'logs', '.runtime', '.venv', 'venv', 'site-packages'}
-CORE = {'example-project': 'Example Project', 'example-site': 'Example Site', 'example-service': 'Example Service', 'example_importer': 'Example Importer', 'example-device': 'Example Device', 'bluelux-workboard':'Workboard', 'workboard':'Workboard'}
+CORE = {'example-project': 'Example Project', 'example-site': 'Example Site', 'example-service': 'Example Service', 'example_importer': 'Example Importer', 'example-device': 'Example Device', 'example_device': 'Example Device', 'bluelux-workboard':'Workboard', 'workboard':'Workboard'}
 
 
 def clean(value):

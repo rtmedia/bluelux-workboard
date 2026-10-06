@@ -4,9 +4,9 @@ A local dashboard across Codex chats, Git repositories, worktrees, stashes, and 
 
 ## Open it
 
-Double-click **Launch Workboard.command** in Finder, or run `python3 launch.py` from this folder. Open http://127.0.0.1:8768. The launcher reuses an existing Workboard server and otherwise starts one in the background. It does not install a login item or scheduled job.
+Double-click **Launch Workboard.command** in Finder, or run `python3 launch.py` from this folder. Open http://127.0.0.1:8080. The launcher reuses an existing Workboard server and otherwise starts one in the background. It does not install a login item or scheduled job.
 
-For a foreground server that stops with Ctrl-C, run `python3 server.py`. Port 8768 is the default; `--port` changes it for a foreground run. The background launcher uses 8768.
+For a foreground server that stops with Ctrl-C, run `python3 server.py`. Port 8080 is the default; `--port` changes it for a foreground run. The background launcher uses 8080.
 
 ## Use it
 

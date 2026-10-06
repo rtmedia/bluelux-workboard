@@ -633,7 +633,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=8768)
+    parser.add_argument('--port', type=int, default=8080)
     parser.add_argument('--open', action='store_true')
     parser.add_argument('--check', action='store_true', help='Run one local inventory and print counts, without serving')
     args = parser.parse_args()
