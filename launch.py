@@ -9,6 +9,7 @@ import time
 from urllib.request import urlopen
 import webbrowser
 import fcntl
+import service
 
 ROOT = Path(__file__).resolve().parent
 URL = 'http://127.0.0.1:43127'
@@ -30,6 +31,12 @@ def main():
     runtime.mkdir(exist_ok=True)
     with (runtime / 'launch.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        if not running() and service.loaded():
+            service.start()
+            for _ in range(60):
+                if running(): break
+                time.sleep(.25)
+            else: raise SystemExit('The managed server is starting or needs attention. Run Check Workboard.command.')
         if not running():
             # Startup-only errors are bounded on every launch; service logs rotate independently.
             with (runtime / 'startup.log').open('wb') as log:

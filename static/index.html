@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#2458e8"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon-192.png">
   <meta name="color-scheme" content="light"><title>Workboard · Your projects</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
-  <script src="/app.js" defer></script>
+  <script src="/app.js" defer></script><script src="/pwa.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to work</a>
@@ -15,7 +16,7 @@
     <div class="sidebar-bottom"><span class="connection-dot"></span><strong>On this Mac</strong><p>Chats and code, in one place.</p><button id="sourceInfo" class="text-button">About the live sources</button></div>
   </aside>
   <main id="main" tabindex="-1">
-    <header class="topbar"><div><span class="eyebrow">YOUR PLACE TO PICK UP</span><h1 id="pageTitle">Your open work</h1><p id="pageSubtitle">See what’s moving and what needs your attention.</p></div><button id="refresh" class="button">↻ <span>Refresh</span></button></header>
+    <header class="topbar"><div><span class="eyebrow">YOUR PLACE TO PICK UP</span><h1 id="pageTitle">Your open work</h1><p id="pageSubtitle">See what’s moving and what needs your attention.</p></div><div class="header-actions"><button id="installApp" class="button">Install app</button><button id="refresh" class="button">↻ <span>Refresh</span></button></div></header>
     <div id="banner" role="status" aria-live="polite"></div>
     <div id="stats" class="stats"></div>
     <div class="controls"><nav class="tabs" aria-label="Views"><button data-view="overview" class="selected">Workboard</button><button data-view="roadmap">Roadmap</button><button data-view="plans">Library</button><button data-view="chats">Activity</button><button data-view="workspaces">Workspaces</button></nav><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Find an item, document, or chat" aria-label="Find an item, document, or chat"></label></div>

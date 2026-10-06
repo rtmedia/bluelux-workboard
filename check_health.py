@@ -14,5 +14,5 @@ try:
     sys.exit(0 if data.get('status')=='ready' else 1)
 except (URLError,HTTPError,ValueError) as exc:
     print('Workboard is unavailable:',str(exc))
-    print('Run Launch Workboard.command to start it. No automatic startup is configured.')
+    print('Run Launch Workboard.command to start or reconnect to the service.')
     sys.exit(1)

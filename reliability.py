@@ -1,5 +1,6 @@
 """Local health reporting and bounded operational diagnostics."""
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import time
@@ -28,4 +29,4 @@ def health(board, started, root):
             'scanSeconds':round(age,1),'lastScan':(board.snapshot or {}).get('checkedAt'),
             'lastScanDurationSeconds':board.scan_duration,'error':board.error,
             'logPolicy':{'maxBytesPerFile':LOG_BYTES,'backups':LOG_BACKUPS},
-            'automaticStartup':False}
+            'processId':os.getpid(), 'automaticStartup':os.environ.get('WORKBOARD_SUPERVISED')=='1'}

@@ -4,7 +4,7 @@ A local dashboard across Codex chats, Git repositories, worktrees, stashes, and 
 
 ## Open it
 
-Double-click **Launch Workboard.command** in Finder, or run `python3 launch.py` from this folder. Open http://127.0.0.1:43127. The launcher reuses an existing Workboard server and otherwise starts one in the background. It does not install a login item or scheduled job.
+Double-click **Launch Workboard.command** in Finder, or run `python3 launch.py` from this folder. Open http://127.0.0.1:43127. The launcher reuses an existing Workboard server and otherwise starts one in the background. The launcher reuses the managed server; automatic startup is configured separately.
 
 For a foreground server that stops with Ctrl-C, run `python3 server.py`. Port 43127 is the default; `--port` changes it for a foreground run. The background launcher uses 43127.
 
@@ -76,12 +76,30 @@ Hover, focus, or tap view names and status labels for definitions. Multiple dist
 
 Keep the application in a stable local folder so launcher and service paths continue to resolve.
 
-The launcher starts a detached background process. Closing the browser or Codex does not control that process. The site is unavailable while the Mac is asleep or off. **No automatic login startup or crash restart is configured.** After a restart, or if the server exits, double-click `Launch Workboard.command`. Concurrent launch attempts are locked to prevent duplicate starts.
+The launcher starts a detached background process. Closing the browser or Codex does not control that process. The site is unavailable while the Mac is asleep or off. **Automatic login startup and restart on exit are enabled** through the user-level macOS launchd service `com.bluelux.workboard`. `Launch Workboard.command` remains a manual fallback and reuses that service. Concurrent launch attempts are locked to prevent duplicate starts.
 
-Click **Service health** in the sidebar, double-click `Check Workboard.command`, or run `python3 check_health.py`. `/api/health` checks the running service independently of source access; `/api/ready` returns 503 until a scan is ready or when degraded. The first scan can take tens of seconds; cached refreshes are faster. A scan exceeding two minutes is reported as degraded. These checks report problems; they do not automatically restart the app.
+Click **Service health** in the sidebar, double-click `Check Workboard.command`, or run `python3 check_health.py`. `/api/health` checks the running service independently of source access; `/api/ready` returns 503 until a scan is ready or when degraded. The first scan can take tens of seconds; cached refreshes are faster. A scan exceeding two minutes is reported as degraded. These checks report problems; macOS launchd restarts the server if it exits. A hung but still-running process is reported as degraded and is not automatically killed.
 
 Operational logs are in `.runtime/service.log`, limited to 1 MiB per file with three rotated backups. `.runtime/startup.log` is replaced at each launch. The local move verification receipt is `.runtime/move-receipt.json`.
 
 The Library uses an explicit configuration allowlist, including package manifests, build/lint settings, Docker and deployment files, and GitHub workflows. Markdown instructions, design documents, README files and `tasks/lessons.md` are included. Environment/credential files, lockfiles, dependency folders and generated output are excluded. Files are capped at 2 MiB and 120 candidates per checkout; any discovery limit appears as a warning. Content is displayed as escaped text and is never executed. Full-text search returns at most 60 indexed version matches.
 
 Source is saved in a local Git repository. A private GitHub backup at `rtmedia/bluelux-workboard` is prepared but awaits explicit upload approval. Runtime snapshots, chat/project data, logs, local settings and screenshots are excluded from Git. Future edits need an explicit commit and push to update this backup; Workboard never commits source projects automatically. Check the current backup state with `git status` and `git log -1` in this folder.
+
+
+## Installed desktop app
+
+Workboard is installable as a PWA at http://127.0.0.1:43127/. Use the **Install app** button in Chrome, or Safari's File → Add to Dock. The installed app opens a separate window. On this Mac it was installed through Chrome at `~/Applications/Chrome Apps.localized/Workboard.app`, with a shortcut at `~/Desktop/Workboard.app`.
+
+Keep the window open and use the app icon to return to it. The browser still needs the local Python server. The local server now starts at login and restarts automatically if it exits. The existing Launch Workboard.command remains a fallback. The app window can stay open independently of Codex; opening the desktop shortcut brings it back.
+
+If the server is stopped when the app opens or reloads, a recovery page appears and retries every five seconds. Only that recovery page and its presentation assets are cached; API responses and project/chat contents are not cached in the browser. Changing the port changes the app's origin, so keep 43127 for the installed app.
+
+PWA verification: `node test_pwa.cjs`.
+
+
+### Background service controls
+
+The per-user service is saved at `~/Library/LaunchAgents/com.bluelux.workboard.plist`. It runs the existing Python installation, binds only to 127.0.0.1:43127, and keeps the existing bounded service logs. It does not prevent sleep or require administrator privileges.
+
+From this folder, run `python3 service.py status` to check supervision, `python3 service.py disable` to stop it and disable future login startup, or `python3 service.py enable` to re-enable it. Disabling preserves the plist as a `.disabled` file. The service controls the background server; it does not reopen an intentionally closed app window.

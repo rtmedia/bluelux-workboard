@@ -5,6 +5,7 @@ import time
 import unittest
 from unittest.mock import patch
 import reliability
+import service
 import server
 
 class HealthTests(unittest.TestCase):
@@ -17,6 +18,15 @@ class HealthTests(unittest.TestCase):
         self.assertEqual(reliability.health(b,started,'/app')['status'],'degraded')
         b.error=None;b.refreshing=True;b.scan_started=time.monotonic()-130
         self.assertEqual(reliability.health(b,started,'/app')['status'],'degraded')
+
+    def test_supervised_health_and_launch_agent_configuration(self):
+        with patch.dict('os.environ', {'WORKBOARD_SUPERVISED':'1'}):
+            self.assertTrue(reliability.health(server.Board(), time.monotonic(), '/app')['automaticStartup'])
+        config=service.configuration(Path('/app with spaces'), '/usr/bin/python3')
+        self.assertEqual(config['ProgramArguments'], ['/usr/bin/python3','-B','/app with spaces/server.py'])
+        self.assertTrue(config['KeepAlive']);self.assertTrue(config['RunAtLoad'])
+        self.assertEqual(config['ThrottleInterval'],10)
+        self.assertEqual(config['EnvironmentVariables']['WORKBOARD_SUPERVISED'],'1')
 
     def test_log_retention_is_bounded(self):
         with tempfile.TemporaryDirectory() as folder:

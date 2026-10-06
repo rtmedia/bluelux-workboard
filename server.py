@@ -604,7 +604,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self.send(502, {'error': 'GitHub details are unavailable. Local data is still available.'})
         assets = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'application/javascript'),
-                  '/style.css': ('style.css', 'text/css'), '/favicon.svg': ('favicon.svg', 'image/svg+xml')}
+                  '/style.css': ('style.css', 'text/css'), '/favicon.svg': ('favicon.svg', 'image/svg+xml'),
+                  '/manifest.webmanifest': ('manifest.webmanifest', 'application/manifest+json'),
+                  '/pwa.js': ('pwa.js', 'application/javascript'), '/sw.js': ('sw.js', 'application/javascript'),
+                  '/offline.html': ('offline.html', 'text/html'), '/offline.css': ('offline.css', 'text/css'),
+                  '/offline.js': ('offline.js', 'application/javascript'),
+                  '/icon-192.png': ('icon-192.png', 'image/png'), '/icon-512.png': ('icon-512.png', 'image/png')}
         if url.path in assets:
             name, mime = assets[url.path]
             return self.send(200, (ROOT / 'static' / name).read_bytes(), mime)
@@ -645,6 +650,7 @@ def main():
         print(json.dumps({'chats': len(s['threads']), 'projects': len(s['projects']), 'workspaces': len(s['workspaces']), 'coverage': s['coverage']}))
         return
     reliability.configure_logging(ROOT)
+    (ROOT / '.runtime' / 'server.pid').write_text(str(os.getpid()))
     server = LocalServer(('127.0.0.1', args.port), Handler)
     BOARD.refresh()
     url = 'http://127.0.0.1:' + str(args.port)
