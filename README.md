@@ -89,7 +89,7 @@ Source is saved in a local Git repository. A private GitHub backup at `rtmedia/b
 
 ## Installed desktop app
 
-Workboard is installable as a PWA at http://127.0.0.1:43127/. Use the **Install app** button in Chrome, or Safari's File → Add to Dock. The installed app opens a separate window. On this Mac it was installed through Chrome at `~/Applications/Chrome Apps.localized/Workboard.app`, with a shortcut at `~/Desktop/Workboard.app`.
+Workboard is installable as a PWA at http://127.0.0.1:43127/. Use the **Install app** button in Chrome, or Safari's File → Add to Dock. The installed app opens a separate window. On this Mac the preferred app is the Safari web app at `~/Applications/Workboard.app`, installed with Safari → File → Add to Dock. The Desktop shortcut at `~/Desktop/Workboard.app` points to this Safari version. The earlier Chrome installation remains at `~/Applications/Chrome Apps.localized/Workboard.app`; it is no longer the desktop shortcut target.
 
 Keep the window open and use the app icon to return to it. The browser still needs the local Python server. The local server now starts at login and restarts automatically if it exits. The existing Launch Workboard.command remains a fallback. The app window can stay open independently of Codex; opening the desktop shortcut brings it back.
 
