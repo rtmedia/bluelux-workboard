@@ -16,7 +16,7 @@ TARGET = 'gui/' + str(os.getuid()) + '/' + LABEL
 def configuration(root, python):
     return {'Label': LABEL, 'ProgramArguments': [str(python), '-B', str(root/'server.py')],
             'WorkingDirectory': str(root), 'RunAtLoad': True, 'KeepAlive': True,
-            'ThrottleInterval': 10, 'ProcessType': 'Background',
+            'ThrottleInterval': 10, 'ProcessType': 'Interactive',
             'EnvironmentVariables': {'PATH':'/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin', 'WORKBOARD_SUPERVISED':'1'},
             'StandardOutPath':'/dev/null', 'StandardErrorPath':'/dev/null'}
 
