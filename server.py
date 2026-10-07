@@ -20,6 +20,7 @@ import sys
 import roadmaps
 import reliability
 import triage
+import delivery
 import logging
 
 ROOT = Path(__file__).resolve().parent
@@ -79,7 +80,7 @@ def local_path(value):
 def parse_events(lines):
     """Read only public message/event types, never reasoning or command output."""
     out = {'request': '', 'response': '', 'workdirs': [], 'turnState': 'unknown',
-           'lastEventAt': None, 'lastMessageAt': None, 'requestAt': None, 'responseAt': None, 'prs': []}
+           'lastEventAt': None, 'lastMessageAt': None, 'requestAt': None, 'responseAt': None, 'prs': [], 'commits': []}
     for line in lines:
         try:
             d = json.loads(line)
@@ -101,6 +102,7 @@ def parse_events(lines):
                 out['lastEventAt'] = stamp
                 if typ == 'task_complete' and p.get('last_agent_message'):
                     out['response'] = plain(p['last_agent_message'])
+                    out['commits'] = delivery.commit_refs(p['last_agent_message'])
                     out['lastMessageAt'] = stamp
                     out['responseAt'] = stamp
                     out['prs'] = list(dict.fromkeys(re.findall(r'https://github\.com/[\w.-]+/[\w.-]+/pull/\d+', p['last_agent_message'])))
@@ -121,6 +123,7 @@ def parse_events(lines):
                 out['requestAt'] = stamp
             elif role == 'assistant' and p.get('phase') in ('final_answer', 'final'):
                 out['response'] = plain(content)
+                out['commits'] = delivery.commit_refs(content)
                 out['lastMessageAt'] = stamp
                 out['responseAt'] = stamp
                 out['prs'] = list(dict.fromkeys(re.findall(r'https://github\.com/[\w.-]+/[\w.-]+/pull/\d+', content)))
@@ -262,10 +265,13 @@ def scan_checkout(w):
         if not e:
             behind, ahead = map(int, value.split())
             counts = {'ahead': ahead, 'behind': behind}
+    ignored, ignored_error = git(path, 'ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z')
+    ignored_paths = [p for p in (ignored or '').split('\0') if p]
     tracked = sum(f['code'] != '??' for f in files)
     untracked = sum(f['code'] == '??' for f in files)
     conflicts = sum(f['code'] in ('DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU') for f in files)
     return {**w, 'branch': (branch or '').strip() or 'Detached HEAD', 'files': files[:150],
+            'ignoredCount': len(ignored_paths) if not ignored_error else None, 'ignoredPaths': ignored_paths[:30],
             'fileCount': len(files), 'tracked': tracked, 'untracked': untracked,
             'conflicts': conflicts, 'upstream': (upstream or '').strip() or None,
             'upstreamComparison': counts, 'tip': (tip or '').strip().split('\0'),
@@ -286,17 +292,19 @@ def scan_repo(repo):
         elif '/work/' in path:
             label = path.split('/work/', 1)[1]
         checkouts.append({'path': path, 'repoId': repo['id'], 'label': label,
+                          'primary': len(checkouts)==0, 'locked': any(l.startswith('locked') for l in fields),
                           'head': next((l[5:] for l in fields if l.startswith('HEAD ')), None)})
     stash, _ = git(repo['root'], 'stash', 'list', '--format=%gd%x09%cs%x09%gs')
-    branches, _ = git(repo['root'], 'for-each-ref', '--format=%(refname:short)%09%(upstream:short)%09%(committerdate:short)', 'refs/heads')
+    branches, _ = git(repo['root'], 'for-each-ref', '--format=%(refname:short)%09%(upstream:short)%09%(committerdate:short)%09%(objectname)', 'refs/heads')
     return {**repo, 'error': err, 'checkouts': checkouts,
             'stashes': [dict(zip(('name', 'date', 'subject'), line.split('\t', 2))) for line in (stash or '').splitlines()],
-            'branches': [dict(zip(('name', 'upstream', 'date'), line.split('\t', 2))) for line in (branches or '').splitlines()]}
+            'branches': [dict(zip(('name', 'upstream', 'date', 'sha'), line.split('\t', 3))) for line in (branches or '').splitlines()]}
 
 
 class Board:
     def __init__(self):
         self.reader = CodexReader()
+        self.delivery = delivery.Monitor(run, git)
         self.triage = triage.Store(ROOT / ".runtime" / "triage.json")
         self.lock = threading.Lock()
         self.snapshot = None
@@ -388,6 +396,7 @@ class Board:
                      'lastMessageAt': ctx.get('lastMessageAt'), 'historyLimited': ctx.get('historyLimited', False),
                      'requestAt': ctx.get('requestAt'), 'responseAt': ctx.get('responseAt'),
                      'contextError': ctx.get('contextError'), 'observedPaths': observed, 'prs': ctx.get('prs', []),
+                     'commits': ctx.get('commits', []),
                      'workspacePaths': [], 'link': 'codex://threads/' + row['id']}
                 t['workspacePaths'] = linked_workspaces([row['cwd']] + observed, workspaces, by_path)
                 for w in workspaces:
@@ -409,6 +418,7 @@ class Board:
                 self.documents = documents
                 self.snapshot = snapshot
                 self.error = None
+            self.delivery.refresh(snapshot)
         except Exception as exc:
             self.error = str(exc)[:300]
             LOGGER.error('Local inventory failed: %s', type(exc).__name__)
@@ -424,7 +434,7 @@ class Board:
         except (OSError, ValueError):
             choices, choice_error = {}, 'Saved Workboard choices are unavailable. They have not been overwritten.'
         return {'data': self.snapshot, 'refreshing': self.refreshing, 'error': self.error,
-                'choices': choices, 'choiceError': choice_error}
+                'choices': choices, 'choiceError': choice_error, 'delivery': self.delivery.state()}
 
     def detail(self, thread_id):
         row = self.rows.get(thread_id)
@@ -626,6 +636,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.allowed():
             return
+        if self.path == '/api/delivery':
+            if self.headers.get('X-Workboard-Action') != 'delivery':
+                return self.send(403, {'error': 'Use the delivery check button.'})
+            BOARD.delivery.refresh(BOARD.snapshot, force=True)
+            return self.send(202, {'refreshing': True})
         if self.path == '/api/triage':
             if self.headers.get('X-Workboard-Action') != 'triage' or self.headers.get('Content-Type') != 'application/json':
                 return self.send(403, {'error': 'Use the Workboard discussion controls.'})
