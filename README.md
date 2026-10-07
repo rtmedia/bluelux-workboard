@@ -1,6 +1,6 @@
 # Workboard
 
-Product intent is defined in [CHARTER.md](CHARTER.md). The [source-of-truth plan](TASKS.md#wb-source-truth--view-only-workboard-and-source-reconciliation--in_progress) replaces manual tracking with contextual Codex prompt handoffs, including Reconcile. The view-only controls and prompt handoffs are now implemented.
+Product intent is defined in [CHARTER.md](CHARTER.md). The [source-of-truth plan](TASKS.md#wb-source-truth--view-only-workboard-and-source-reconciliation--done) replaces manual tracking with contextual Codex prompt handoffs, including Reconcile. The view-only controls and prompt handoffs are now implemented.
 
 A local dashboard across Codex chats, Git repositories, worktrees, stashes, and GitHub pull requests. No npm/pip packages or cloud deployment.
 
@@ -13,8 +13,8 @@ For a foreground server that stops with Ctrl-C, run `python3 server.py`. Port 43
 ## Use it
 
 - Select a project, or keep All projects selected.
-- Overview highlights checkouts with local edits and recent conversations.
-- Conversations supports title/context/branch search and an archived-chat toggle. Click a card for the recent request, saved response, observed command folders, related checkouts, and **Open in Codex**.
+- Overview prioritizes unfinished work, remaining delivery, project follow-up and verified recent completion.
+- Activity supports title/context/branch search and an archived-chat toggle. Click a card for the recent request, saved response, observed command folders, related checkouts, and **Open in Codex**.
 - Workspaces shows every discovered registered checkout, its real branch, file changes, shared chats, cached upstream comparison, and repository stashes.
 - **Check GitHub** reads current default-branch and pull-request data through the existing `gh` login. It does not fetch or change local branches.
 - The browser refreshes local status every 30 seconds while visible. Refresh is also available manually.
@@ -144,3 +144,12 @@ Open **Instructions** to read the current local global AGENTS.md, any AGENTS.ove
 Project guidance maps the local task ledger and supporting artifacts. Global machine instructions are not automatically available in other environments.
 
 Library Configuration means build/test/runtime infrastructure, not disposable clutter. Product playbook documents are categorized by role rather than mistaken for agent instructions. Remaining CLAUDE.md copies are labeled legacy guidance; review their source checkout. Historical plans and reports require task-by-task reconciliation before retirement. Personal-tracking removal has been completed; Continue and Reconcile are implemented as prompt handoffs.
+
+
+### When the framework takes effect
+
+Instructions → Global Codex instructions → Development working agreement shows the lightweight framework read from `~/.codex/AGENTS.md`. Request an instruction change prepares a Codex prompt; Workboard has no settings editor or instruction-save API.
+
+Codex builds its instruction chain at the start of a run. This Workboard chat was verified to contain the new agreement in its loaded instructions on October 6, 2026. No application restart is needed for this chat to use it. In an older chat, ask Codex to read the current global and project AGENTS.md before continuing; if automatic instructions look stale, start a fresh session/run in the intended project. Restarting does not update files in old checkouts or copy this Mac's global instructions into cloud environments. See [official instruction discovery guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+
+Verification limits: Safari prompt copying, source refresh and removed-worktree continuity have been exercised. Exact Codex links and failure fallbacks are tested, but native foreground navigation into Codex could not be visually confirmed. Instructions displays files available locally, not proof of every chat's effective instruction stack. Cloud-only chats are not covered by the local reader.
