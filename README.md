@@ -14,7 +14,7 @@ For a foreground server that stops with Ctrl-C, run `python3 server.py`. Port 43
 
 - Select a project, or keep All projects selected.
 - Overview prioritizes unfinished work, remaining delivery, project follow-up and verified recent completion.
-- Activity supports title/context/branch search and an archived-chat toggle. Click a card for the recent request, saved response, observed command folders, related checkouts, and **Open in Codex**.
+- History supports title/context/branch search and an archived-chat toggle. Click a card for the recent request, saved response, observed command folders, related checkouts, and **Open in Codex**.
 - Workspaces shows every discovered registered checkout, its real branch, file changes, shared chats, cached upstream comparison, and repository stashes.
 - **Check GitHub** reads current default-branch and pull-request data through the existing `gh` login. It does not fetch or change local branches.
 - The browser refreshes local status every 30 seconds while visible. Refresh is also available manually.
@@ -53,10 +53,10 @@ Python 3.10+ and Git are required. The existing GitHub CLI is optional for GitHu
 
 Workboard opens on **Example Project, Example Site, Example Service, Example Importer, Example Device and Workboard**. Other discovered projects are behind **Other projects**. Sidebar counts represent open recorded task items, not chat totals.
 
-- **Workboard:** core project summaries with a few open items, the latest discussion, and four recent/relevant activity rows.
+- **Workboard:** one action queue. Click the Resume, Cleanup, In progress or Recently completed dashboard card to filter it; Overview restores the combined view. Needs review contains discussions with uncertain evidence. Filters are temporary views, not saved task statuses.
 - **Roadmap:** open, in-progress, next, done and deferred filters. Click a task to read its remaining checklist, source location, directly matching task-ID conversations, and chats linked to the source checkout.
 - **Library:** agent instructions, design/architecture documents, plans, task files, configuration and reference files. Filter by category, search inside file contents, and browse readable sections with source paths and versions.
-- **Activity:** three most recent discussions plus up to three explicit open-task matches; search to find older conversations (up to 50 results).
+- **History:** indexed discussions in date order, with search and an archived-chat toggle. It is for retrieving past context, without repeating the action queue.
 - **Workspaces:** the existing checkout inventory, scoped to the selected projects.
 
 The adapter reads up to 120 relevant Markdown/configuration files per known checkout, at most 2 MB per file, excluding generated/ignored/archive folders. It groups identical document copies and deduplicates repeated task IDs. Explicit task status wins over checklist progress; a shipped release can still have unfinished verification. Supporting plan checklists remain within those documents instead of inflating the main TASKS count. Unstructured narrative is shown as reference content, not invented task status.
@@ -130,7 +130,7 @@ Deployment is independent of the main-branch completion milestone. Explicit Rend
 Additional verification: `python3 -m unittest -q`, `node test_focus.cjs`, `node test_delivery_ui.cjs`.
 
 ### Session cleanup prompts
-Each discussion has **Clean up session ↗**. It copies a prompt limited to that chat and opens its existing Codex chat; paste and send there. Open discussion details to preview the prompt first. If clipboard access is unavailable, the draft remains selectable in Workboard. No cleanup command is sent or executed by Workboard.
+Delivered discussions with verified leftovers have **Clean up session ↗** as their single contextual action. It copies a prompt limited to that chat and opens its existing Codex chat; paste and send there. Open discussion details to preview the prompt first. If clipboard access is unavailable, the draft remains selectable in Workboard. No cleanup command is sent or executed by Workboard.
 
 The prompt requires fresh delivery and ownership evidence, leaves uncertain work in place, asks for concrete decisions, prohibits creating stashes/backups as a workaround, and preserves chat history. A completed session may remove its verified disposable worktree without a replacement checkout; Workboard retains the chat through saved repository identity and shows a neutral “No local checkout” label. Folder absence alone does not establish completion. Project/workspace associations are leads, not ownership proof. Tool-created recovery snapshots also need an explicit decision.
 
@@ -153,3 +153,12 @@ Instructions → Global Codex instructions → Development working agreement sho
 Codex builds its instruction chain at the start of a run. This Workboard chat was verified to contain the new agreement in its loaded instructions on October 6, 2026. No application restart is needed for this chat to use it. In an older chat, ask Codex to read the current global and project AGENTS.md before continuing; if automatic instructions look stale, start a fresh session/run in the intended project. Restarting does not update files in old checkouts or copy this Mac's global instructions into cloud environments. See [official instruction discovery guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
 Verification limits: Safari prompt copying, source refresh and removed-worktree continuity have been exercised. Exact Codex links and failure fallbacks are tested, but native foreground navigation into Codex could not be visually confirmed. Instructions displays files available locally, not proof of every chat's effective instruction stack. Cloud-only chats are not covered by the local reader.
+
+
+## Focused queue and checkout review
+
+Cleanup is a Workboard filter, not a separate tab. In progress lists started/blocked source tasks; Recently completed lists discussions with delivery evidence from the last 30 days. Roadmap retains the full project backlog, Library the documents, Instructions the guidance, and Workspaces the exact local folders. Dashboard counts follow the selected project and search; Git groups and task records remain distinct from discussion counts.
+
+Chat details have one status/action panel, a collapsed evidence section, and the request/response context. Click outside the flyout, press Escape, or use its close button to dismiss it. Clean up session copies the prompt during the click and requests navigation to the exact `codex://threads/...` link. Paste with Command-V and send in Codex; auto-paste and auto-send are not performed. A visible prompt and direct link remain if clipboard access or app opening fails. Browser navigation cannot confirm that Codex actually displayed the destination.
+
+In Workspaces, **Review cleanup in Codex** prepares a prompt limited to the exact indexed checkout and its directly associated temporary branch. Choose a linked chat to copy and open it, or copy only when no appropriate chat is listed. Association does not prove ownership. Codex must inspect fresh state, keep primary checkouts/default branches, preserve unfinished/shared/ignored data, and ask about concrete uncertain targets or deletion approval. The dashboard never deletes folders or creates preservation artifacts.
