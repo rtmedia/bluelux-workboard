@@ -25,7 +25,7 @@ vm.runInContext("state.query='';state.view='chats';render();",context);
 assert(elements.get('#content').innerHTML.includes('data-cleanup-chat="chat"'));
 vm.runInContext("state.data.threads[0].cwd='/missing/<checkout>';state.data.threads[0].assignedFolderExists=false;showChat('chat');",context);
 html=elements.get('#detailBody').innerHTML;
-assert(html.includes('assigned folder is missing'));assert(html.includes('Preview cleanup prompt'));assert(html.includes('/missing/&lt;checkout&gt;'));assert(!html.includes('/missing/<checkout>'));
+assert(html.includes('No local checkout'));assert(html.includes('expected state after finished-session cleanup'));assert(!html.includes('Resolve its working-folder handoff'));assert(html.includes('Preview cleanup prompt'));assert(html.includes('/missing/&lt;checkout&gt;'));assert(!html.includes('/missing/<checkout>'));
 vm.runInContext("cleanupChat('chat');",context);
 assert(elements.get('#cleanupPrompt').value.includes('"chatId": "chat"'));
 assert(elements.get('#detailBody').innerHTML.includes('readonly'));
