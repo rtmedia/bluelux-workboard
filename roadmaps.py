@@ -119,8 +119,8 @@ CONFIG_NAMES = {'.gitignore','.gitattributes','.editorconfig','.dockerignore','.
 def category(relative):
     p=Path(relative); name=p.name.lower()
     if name in ('tasks.md','todos.md'): return 'tasks'
-    if name in ('agents.md','claude.md','gemini.md','copilot-instructions.md') or 'playbook' in name: return 'instructions'
-    if any(w in name for w in ('design','architecture','guideline')): return 'design'
+    if name in ('agents.md','agents.override.md','claude.md','gemini.md','copilot-instructions.md','engineering_playbook.md'): return 'instructions'
+    if name=='charter.md' or any(w in name for w in ('design','architecture','guideline')): return 'design'
     if any(w in name for w in ('plan','roadmap','checkpoint')): return 'plans'
     if p.suffix.lower() not in ('.md','.mdx'): return 'configuration'
     return 'reference'

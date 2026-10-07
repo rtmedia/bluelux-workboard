@@ -18,8 +18,8 @@ from urllib.parse import unquote, urlsplit, parse_qs
 import webbrowser
 import sys
 import roadmaps
+import instructions
 import reliability
-import triage
 import delivery
 import logging
 
@@ -312,7 +312,6 @@ class Board:
     def __init__(self):
         self.reader = CodexReader()
         self.delivery = delivery.Monitor(run, git)
-        self.triage = triage.Store(ROOT / ".runtime" / "triage.json")
         self.lock = threading.Lock()
         self.snapshot = None
         self.refreshing = False
@@ -439,12 +438,8 @@ class Board:
     def state(self):
         if not self.snapshot and not self.refreshing:
             self.refresh()
-        try:
-            choices, choice_error = self.triage.read(), None
-        except (OSError, ValueError):
-            choices, choice_error = {}, 'Saved Workboard choices are unavailable. They have not been overwritten.'
         return {'data': self.snapshot, 'refreshing': self.refreshing, 'error': self.error,
-                'choices': choices, 'choiceError': choice_error, 'delivery': self.delivery.state()}
+                'delivery': self.delivery.state()}
 
     def detail(self, thread_id):
         row = self.rows.get(thread_id)
@@ -590,6 +585,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         url = urlsplit(self.path)
         query = parse_qs(url.query)
+        if url.path == '/api/instructions':
+            if url.query:
+                return self.send(400, {'error': 'This endpoint accepts no file paths or query parameters.'})
+            return self.send(200, instructions.snapshot(CODEX_HOME, ROOT))
         if url.path == '/api/health':
             return self.send(200, reliability.health(BOARD, STARTED, ROOT))
         if url.path == '/api/ready':
@@ -652,25 +651,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(403, {'error': 'Use the delivery check button.'})
             BOARD.delivery.refresh(BOARD.snapshot, force=True)
             return self.send(202, {'refreshing': True})
-        if self.path == '/api/triage':
-            if self.headers.get('X-Workboard-Action') != 'triage' or self.headers.get('Content-Type') != 'application/json':
-                return self.send(403, {'error': 'Use the Workboard discussion controls.'})
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                if not 0 < length <= 8192:
-                    return self.send(400, {'error': 'Invalid request size.'})
-                data = json.loads(self.rfile.read(length))
-                thread = next((t for t in (BOARD.snapshot or {}).get('threads', []) if t['id'] == data.get('id')), None)
-                if not thread:
-                    return self.send(404, {'error': 'Refresh to load this discussion first.'})
-                if data.get('requestToken') != triage.request_token(thread):
-                    return self.send(409, {'error': 'This discussion changed. Refresh and review its latest request.'})
-                items = BOARD.triage.update(thread, data.get('status'), data.get('note', ''))
-                return self.send(200, {'choices': items})
-            except (ValueError, AttributeError, TypeError):
-                return self.send(400, {'error': 'Invalid choice or unreadable saved choices. No choices were overwritten.'})
-            except OSError:
-                return self.send(500, {'error': 'Could not save your choice. Try again; source projects are unchanged.'})
         if self.path == '/api/reveal':
             if self.headers.get('X-Workboard-Action')!='reveal' or self.headers.get('Content-Type')!='application/json':
                 return self.send(403, {'error': 'Use the Workboard Finder button.'})

@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {classify,token,evidence}=require('./static/focus.js');
+const {classify,evidence}=require('./static/focus.js');
 const base={id:'a',projectIds:['project-a'],requestIsRecent:true,request:'Fix AUTH9',requestAt:'2026-10-01T10:00:00Z',responseAt:'2026-10-01T11:00:00Z',response:'Here is an explanation.',turnState:'finished'};
 const state=(response,extra={},tasks=[])=>classify({...base,response,...extra},tasks);
 assert.equal(state('Here is the implementation plan.').bucket,'review');
@@ -28,20 +28,14 @@ assert.equal(state('Changes applied.',{},[{...active,projectId:'website'}]).buck
 assert.equal(state('Changes applied.',{request:'AUTH90'},[active]).bucket,'review');
 assert.equal(state('Changes applied.',{},[{...active,status:'done'}]).bucket,'review');
 assert.equal(state('Changes applied.',{},[active]).next,'Check sign-in on device');
-for(const status of ['focus','resume','completed','parked'])assert.equal(classify(base,[],{status,requestToken:token(base),note:'Do this next'}).bucket,status);
-assert.equal(classify(base,[],{status:'toString',requestToken:token(base)}).bucket,'review');
-assert.equal(classify(base,[],{status:'completed',requestToken:'old'}).bucket,'review');
-assert.equal(classify(base,[],{status:'parked',requestToken:'old'}).label,'New activity');
-console.log('Discussion status checks pass: completion, pending follow-up, interrupted/new requests, uncertain delivery, task conflicts, manual choices.');
-
 const url='https://github.com/a/b/pull/9';
 const report={repositories:[{repoId:'project-a',remote:'https://github.com/a/b',checkedAt:new Date().toISOString(),defaultBranch:'main',defaultCommit:'main',units:[{branch:'fix',sha:'head',cleanup:true}],pullRequests:{[url]:{state:'included',sha:'head',branch:'fix'}},commits:{abc1234:{sha:'head',state:'included'}}}]};
 const delivered={...base,prs:[url],response:'Committed and pushed.'};
 const proof=evidence(delivered,report);
 assert.equal(proof.included,true);assert.equal(proof.cleanup.length,1);
-assert.equal(classify(delivered,[active],null,proof).bucket,'completed');
-assert.equal(classify({...delivered,requestAt:'2026-10-02T10:00:00Z'},[],null,proof).bucket,'resume');
-assert.equal(classify({...delivered,turnState:'interrupted',lastEventAt:'2026-10-02T10:00:00Z'},[],null,proof).bucket,'resume');
+assert.equal(classify(delivered,[active],proof).bucket,'completed');
+assert.equal(classify({...delivered,requestAt:'2026-10-02T10:00:00Z'},[],proof).bucket,'resume');
+assert.equal(classify({...delivered,turnState:'interrupted',lastEventAt:'2026-10-02T10:00:00Z'},[],proof).bucket,'resume');
 assert.equal(evidence({...base,workspacePaths:['/main'],prs:[]},report).included,false);
 assert.equal(evidence({...delivered,prs:[url,'https://github.com/a/b/pull/10']},report).included,false);
 assert.equal(evidence({...delivered,projectIds:['website']},report).included,false);
@@ -49,5 +43,11 @@ assert.equal(evidence({...base,commits:[{sha:'abc1234',repo:'a/b'}]},report).inc
 assert.equal(evidence({...base,commits:[{sha:'abc1234',repo:'other/repo'}]},report).included,false);
 report.repositories[0].checkedAt='2020-01-01';
 assert.equal(evidence(delivered,report).included,false);
-assert.equal(classify(base,[],null,{refs:[{state:'open'}]}).bucket,'resume');
+assert.equal(classify(base,[],{refs:[{state:'open'}]}).bucket,'delivery');
 console.log('Git-backed classification checks pass: main, later requests, shared checkout, cross-repo ambiguity, expired evidence and cleanup separation.');
+
+assert.equal(classify({...delivered,response:'Delivered one part. Next steps: implement the remaining form.'},[],proof).bucket,'resume');
+assert.equal(classify({...delivered,response:'Done. Next steps: delete the branch and worktree.'},[],proof).bucket,'completed');
+assert.equal(classify({...delivered,response:'Done 2 of 3 steps.'},[],proof).bucket,'review');
+
+assert.equal(classify({...delivered,response:'Done. Next steps: delete the branch. Next steps: implement the missing form.'},[],proof).bucket,'resume');

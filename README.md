@@ -1,5 +1,7 @@
 # Workboard
 
+Product intent is defined in [CHARTER.md](CHARTER.md). The [source-of-truth plan](TASKS.md#wb-source-truth--view-only-workboard-and-source-reconciliation--in_progress) replaces manual tracking with contextual Codex prompt handoffs, including Reconcile. The view-only controls and prompt handoffs are now implemented.
+
 A local dashboard across Codex chats, Git repositories, worktrees, stashes, and GitHub pull requests. No npm/pip packages or cloud deployment.
 
 ## Open it
@@ -84,7 +86,7 @@ Operational logs are in `.runtime/service.log`, limited to 1 MiB per file with t
 
 The Library uses an explicit configuration allowlist, including package manifests, build/lint settings, Docker and deployment files, and GitHub workflows. Markdown instructions, design documents, README files and `tasks/lessons.md` are included. Environment/credential files, lockfiles, dependency folders and generated output are excluded. Files are capped at 2 MiB and 120 candidates per checkout; any discovery limit appears as a warning. Content is displayed as escaped text and is never executed. Full-text search returns at most 60 indexed version matches.
 
-Source is saved in a local Git repository. A private GitHub backup at `rtmedia/bluelux-workboard` is prepared but awaits explicit upload approval. Runtime snapshots, chat/project data, logs, local settings and screenshots are excluded from Git. Future edits need an explicit commit and push to update this backup; Workboard never commits source projects automatically. Check the current backup state with `git status` and `git log -1` in this folder.
+Source is saved in a local Git repository. The user approved a private GitHub source repository at `rtmedia/bluelux-workboard`; publication is recorded in TASKS.md. Runtime snapshots, chat/project data, logs, local settings and screenshots are excluded from Git. Future edits need an explicit commit and push to update this backup; Workboard never commits source projects automatically. Check the current backup state with `git status` and `git log -1` in this folder.
 
 
 ## Installed desktop app
@@ -107,20 +109,19 @@ From this folder, run `python3 service.py status` to check supervision, `python3
 
 ## Finish-first workflow
 
-The home view puts discussions with unfinished-work evidence in **Resume**, and lets you choose one **Focus now** discussion. Add a next-step note before leaving for the day. **Evidence unclear** contains ambiguous or conflicting evidence; review once and choose Keep open, Mark complete, or Park. **Recently completed** shows work verified on GitHub main or your manual closeout choices from the last 30 days. Activity includes older completed discussions. Roadmaps and backlog remain available below the queue and in Roadmap.
+The home view prioritizes **Resume**, **Finish delivery**, **Project follow-up**, **Recently completed** and **Evidence unclear**. Classification comes from recorded source evidence; there are no saved focus, completion/parking overrides or next-step notes, and the old triage write API rejects requests. Workboard is a reader, not a second task ledger.
 
-Suggestions use saved user/assistant message timestamps, interruptions, explicit follow-up language and exact task-ID matches. A finished turn or clean shared checkout does not establish delivery. Explicit PR/commit references are verified against main; landing there is the completion milestone. Chat-only completion reports stay unverified until checked or manually closed. Source tasks stay separate and must be reconciled in their actual TASKS.md. Multiple project badges indicate the chat's assigned and observed project folders, not exclusive ownership.
+A contextual **Continue**, **Finish delivery** or **Reconcile state** button copies a scoped prompt and opens the exact chat. **Reconcile project** in Roadmap and Library prepares an artifact-review prompt and lists project-associated chats for the user to choose. Workboard does not choose ownership from recency and never submits the prompt. Read-only prompt previews and manual-copy fallbacks remain available.
 
-Your choices and notes are atomically saved in `.runtime/triage.json`, excluded from Git and shared by Safari and other local browsers. The service never changes Codex history or source repositories. New requests invalidate older choices; previously completed/parked discussions return for review. “Use suggestion” removes the local override. Missing/corrupt metadata is surfaced instead of silently overwriting it. This file is persistent local user data, not a disposable cache.
+The latest request, interruptions, remaining steps and exact task-ID links inform the queue. Cited commits/PRs are independently checked against the default branch. A later unfinished work unit can keep a conversation in Resume while earlier delivery badges remain visible. Source task status must be corrected in the project, not overridden here. Unknown local-only/cloud-only completion stays explicit.
 
 Verification: `node test_focus.cjs`, `python3 -m unittest -q`, `node --check static/app.js`, `node test_pwa.cjs`.
-
 
 ## Git-backed delivery and Cleanup
 
 The delivery milestone is a work unit's explicit PR or labelled commit appearing on the current GitHub default branch (main in the core projects). GitHub is read through the existing `gh` sign-in; no fetch, checkout, branch deletion or source-repository writes occur. Background checks are separate from local inventory/health, use a five-minute remote cache, publish repository results as they finish, and bound each repository check to roughly 90 seconds plus an outstanding request. **Check delivery now** bypasses the remote cache. Coverage limits and unavailable evidence are displayed.
 
-**Resume** contains unfinished execution/delivery, with a separate list for local changes and unfinished branches that may span chats. **In progress** counts started source tasks/plans needing follow-up. **Recently completed** contains cited work verified on the default branch and manual closeout choices. A newer request reopens a discussion; sharing a clean/main checkout never completes every linked chat. **Evidence unclear** is kept separate from concrete cleanup obligations.
+**Resume** contains unfinished execution/delivery, with a separate list for local changes and unfinished branches that may span chats. **In progress** counts started source tasks/plans needing follow-up. **Recently completed** contains cited work verified on the default branch. A newer request reopens a discussion; sharing a clean/main checkout never completes every linked chat. **Evidence unclear** is kept separate from concrete cleanup obligations.
 
 **Cleanup** lists delivered branches and extra worktrees separately from completion. A completed item can display **On main · Cleanup pending**. Exact PR-head matching plus merge-commit ancestry handles squash/rebase merges; newer commits on a branch remain protected. Local and remote leftovers are distinguished. Default/protected branches and primary checkouts are retained. Changed, untracked, ignored, locked and otherwise unverified work is flagged for inspection. No deletion button exists: an actual cleanup requires a separate exact-target inspection and approval under the local deletion policy. Repository stashes are counted separately.
 
@@ -132,3 +133,14 @@ Additional verification: `python3 -m unittest -q`, `node test_focus.cjs`, `node 
 Each discussion has **Clean up session ↗**. It copies a prompt limited to that chat and opens its existing Codex chat; paste and send there. Open discussion details to preview the prompt first. If clipboard access is unavailable, the draft remains selectable in Workboard. No cleanup command is sent or executed by Workboard.
 
 The prompt requires fresh delivery and ownership evidence, leaves uncertain work in place, asks for concrete decisions, prohibits creating stashes/backups as a workaround, and preserves chat history. A completed session may remove its verified disposable worktree without a replacement checkout; Workboard retains the chat through saved repository identity and shows a neutral “No local checkout” label. Folder absence alone does not establish completion. Project/workspace associations are leads, not ownership proof. Tool-created recovery snapshots also need an explicit decision.
+
+
+## Instructions and lightweight workflow
+
+Open **Instructions** to read the current local global AGENTS.md, any AGENTS.override.md, the Workboard charter, and indexed project instruction versions. Paths, source modification times, read errors and local coverage limits are visible. Global sources are read fresh from an exact allowlist through GET /api/instructions; there is no instruction-save API or arbitrary file-path parameter. Symlinks, non-regular files and sources larger than 64 KiB are rejected. Codex configuration, credentials and local permission settings are not exposed by this endpoint.
+
+**Request an instruction change** provides a preview and a copyable prompt. Add the behavior you want changed in Codex. **Copy & open** links target the chosen existing Workboard-associated chat; the association is context, not ownership. No chat is selected automatically and nothing is submitted. Safari's selection-copy fallback is supported. Reload instructions or Refresh to read subsequent source edits.
+
+Project guidance maps the local task ledger and supporting artifacts. Global machine instructions are not automatically available in other environments.
+
+Library Configuration means build/test/runtime infrastructure, not disposable clutter. Product playbook documents are categorized by role rather than mistaken for agent instructions. Remaining CLAUDE.md copies are labeled legacy guidance; review their source checkout. Historical plans and reports require task-by-task reconciliation before retirement. Personal-tracking removal has been completed; Continue and Reconcile are implemented as prompt handoffs.

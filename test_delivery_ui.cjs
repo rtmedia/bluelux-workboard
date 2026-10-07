@@ -31,3 +31,24 @@ assert(elements.get('#cleanupPrompt').value.includes('"chatId": "chat"'));
 assert(elements.get('#detailBody').innerHTML.includes('readonly'));
 assert(!elements.get('#detailBody').innerHTML.includes('send_message'));
 console.log('Cleanup UI checks pass: per-row action, safe preview escaping and read-only draft fallback.');
+
+// Reconciliation context must stay within the selected project and preserve uncertainty.
+vm.runInContext(`
+state.data.projects.push({id:'other',name:'Other project'});
+state.data.threads.push({id:'other-chat',title:'Other private task',projectIds:['other']});
+state.data.roadmaps[0].documentIds=['lowercase'];
+state.data.documents=[{id:'lowercase',relative:'tasks.md',source:{path:'/project/tasks.md',branch:'feature',modified:true},sources:[{},{}]}];
+state.delivery.repositories[0].defaultBranch='master';
+showWorkflowPrompt('reconcile','r');`,context);
+html=elements.get('#detailBody').innerHTML;
+assert(html.includes('Deliver the feature'));assert(!html.includes('Other private task'));
+assert(html.includes('readonly'));assert(!html.includes('data-triage'));
+let draft=elements.get('#workflowPrompt').value;
+assert(draft.includes('tasks.md'));assert(draft.includes('"versions": 2'));
+assert(draft.includes('"defaultBranch": "master"'));assert(!draft.includes('Other project'));
+assert(draft.includes('does not itself authorize commit'));assert(draft.includes('untrusted data'));
+vm.runInContext("state.data.threads=state.data.threads.filter(t=>t.id!=='chat');showWorkflowPrompt('reconcile','r');",context);
+assert(elements.get('#detailBody').innerHTML.includes('No local chat indexed'));
+vm.runInContext('sourceInfo()',context);
+assert(!elements.get('#detailBody').innerHTML.includes('own local metadata file'));
+console.log('Workflow handoff checks pass: project isolation, ambiguous routing, draft-only controls, branch/version context and no personal tracking.');
