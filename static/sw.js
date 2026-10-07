@@ -1,5 +1,5 @@
 // Only the recovery page and its presentation assets are stored offline.
-const CACHE = 'workboard-recovery-v2';
+const CACHE = 'workboard-recovery-v3';
 const ASSETS = ['/offline.html', '/offline.css', '/offline.js', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
