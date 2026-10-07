@@ -35,6 +35,16 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(tasks[1]['title'], 'Define freshness and confidence.')
         self.assertEqual(tasks[2]['title'], 'P0-1 · Failure')
 
+    def test_named_work_units_and_heading_status_own_acceptance_criteria(self):
+        text = '## WB-SOURCE-TRUTH — View-only workflow — IN_PROGRESS\n### Verify\n- [x] Implement\n- [ ] Deliver\n## DOC-RAG-ASYNC — Retrieval — DONE\n- [x] Inspect\n'
+        tasks = roadmaps.parse_tasks(text)
+        self.assertEqual([(t['key'], t['status']) for t in tasks], [('WB-SOURCE-TRUTH','active'),('DOC-RAG-ASYNC','done')])
+        self.assertEqual(len(tasks[0]['checks']), 2)
+
+    def test_body_status_wins_over_heading_and_prose_is_not_status(self):
+        tasks = roadmaps.parse_tasks('## DOC-CHECK — Review — DONE\n- **Status**: BLOCKED\n- [ ] Verify\n## Things that might be done\n- [ ] Still open\n')
+        self.assertEqual([t['status'] for t in tasks], ['blocked','next'])
+
     def test_unrecognized_status_is_not_invented(self):
         self.assertIsNone(roadmaps.status('Maybe complete later'))
         self.assertEqual(roadmaps.status('DEFERRED — waiting'), 'deferred')

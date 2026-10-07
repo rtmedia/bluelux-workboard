@@ -23,7 +23,7 @@ def status(value):
 
 
 def task_key(title):
-    match = re.match(r'([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*\d+[A-Z0-9-]*|SURFACE-[A-Z-]+)\b', clean(title))
+    match = re.match(r'([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*\d+[A-Z0-9-]*|[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b', clean(title))
     return match.group(1) if match else hashlib.sha256(clean(title).lower().encode()).hexdigest()[:14]
 
 
@@ -49,8 +49,9 @@ def parse_tasks(text):
         h['history'] = bool(re.search(r'archiv|historical|review report', h['title'], re.I)) or any(p['history'] and p['start'] < h['start'] < p['end'] for p in headings[:n])
         direct = '\n'.join(lines[i] for i in range(h['start']+1,h['directEnd']) if i not in ignored)
         m = re.search(r'^\s*(?:[-*]\s*)?(?:\*\*)?Status(?:\*\*)?\s*:\s*(.+)', direct, re.M | re.I)
-        h['status'] = status(m[1]) if m else None
-        h['statusText'] = clean(m[1]) if m else ''
+        suffix = re.search(r'(?:—|–| - )\s*(IN_PROGRESS|IN PROGRESS|TODO|DONE|BLOCKED|DEFERRED|CANCELLED|CANCELED)\s*$', h['title'], re.I)
+        h['status'] = status(m[1]) if m else status(suffix[1]) if suffix else None
+        h['statusText'] = clean(m[1]) if m else suffix[1] if suffix else ''
     tasks = []
     def add(title, state, line, end, group, evidence, kind='task'):
         body = '\n'.join(lines[line:end])
