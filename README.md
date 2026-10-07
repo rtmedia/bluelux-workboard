@@ -127,3 +127,8 @@ The delivery milestone is a work unit's explicit PR or labelled commit appearing
 Deployment is independent of the main-branch completion milestone. Explicit Render statuses/check runs on the current default-branch tip are shown when GitHub exposes them; otherwise deployment is **not checked**, not assumed successful. Failed/pending Render checks appear as follow-up notices without relabelling delivered code as unfinished.
 
 Additional verification: `python3 -m unittest -q`, `node test_focus.cjs`, `node test_delivery_ui.cjs`.
+
+### Session cleanup prompts
+Each discussion has **Clean up session ↗**. It copies a prompt limited to that chat and opens its existing Codex chat; paste and send there. Open discussion details to preview the prompt first. If clipboard access is unavailable, the draft remains selectable in Workboard. No cleanup command is sent or executed by Workboard.
+
+The prompt requires fresh delivery and ownership evidence, leaves uncertain work in place, asks for concrete decisions, prohibits creating stashes/backups as a workaround, and requires a supported working-directory handoff before removing a chat’s current checkout. Project/workspace associations are leads, not ownership proof. Tool-created recovery snapshots also need an explicit decision.

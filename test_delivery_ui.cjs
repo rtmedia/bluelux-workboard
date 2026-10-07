@@ -1,9 +1,10 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const elements=new Map();
-function element(){return {innerHTML:'',textContent:'',dataset:{},classList:{toggle(){}},setAttribute(){},addEventListener(){},append(){},showModal(){this.open=true},close(){this.open=false}};}
+function element(){return {innerHTML:'',textContent:'',dataset:{},classList:{toggle(){}},setAttribute(){},addEventListener(){},append(){},focus(){},select(){},showModal(){this.open=true},close(){this.open=false}};}
 const document={querySelector:s=>{if(!elements.has(s))elements.set(s,element());return elements.get(s)},querySelectorAll:()=>[],createElement:element,body:element(),addEventListener(){}};
 const context=vm.createContext({document,window:{addEventListener(){}},fetch:()=>new Promise(()=>{}),setInterval(){},setTimeout(){},clearTimeout(){},URLSearchParams,console});
 vm.runInContext(fs.readFileSync('static/focus.js','utf8'),context);
+vm.runInContext(fs.readFileSync('static/cleanup.js','utf8'),context);
 vm.runInContext(fs.readFileSync('static/app.js','utf8'),context);
 vm.runInContext(`
 state.data={checkedAt:new Date().toISOString(),projects:[{id:'r',name:'Example <Project>',core:true}],repositories:[{id:'r',stashes:[]}],documents:[],workspaces:[],roadmaps:[{projectId:'r',sourceId:null,tasks:[],alternates:[],planIds:[]}],threads:[{id:'chat',title:'Deliver the feature',projectIds:['r'],workspacePaths:[],requestAt:'2020-01-01',responseAt:'2020-01-02',response:'Committed and pushed.',turnState:'finished',prs:['https://github.com/a/b/pull/1'],lastMessageAt:new Date().toISOString()}]};
@@ -20,3 +21,13 @@ assert(elements.get('#detailBody').innerHTML.includes('No deletion is performed'
 vm.runInContext("state.view='chats';state.query='no-match';render();",context);
 assert(elements.get('#content').innerHTML.includes('No matching discussions'));
 console.log('Delivery UI checks pass: verified completion, cleanup separation, escaped source text, read-only details and empty search.');
+vm.runInContext("state.query='';state.view='chats';render();",context);
+assert(elements.get('#content').innerHTML.includes('data-cleanup-chat="chat"'));
+vm.runInContext("state.data.threads[0].cwd='/missing/<checkout>';state.data.threads[0].assignedFolderExists=false;showChat('chat');",context);
+html=elements.get('#detailBody').innerHTML;
+assert(html.includes('assigned folder is missing'));assert(html.includes('Preview cleanup prompt'));assert(html.includes('/missing/&lt;checkout&gt;'));assert(!html.includes('/missing/<checkout>'));
+vm.runInContext("cleanupChat('chat');",context);
+assert(elements.get('#cleanupPrompt').value.includes('"chatId": "chat"'));
+assert(elements.get('#detailBody').innerHTML.includes('readonly'));
+assert(!elements.get('#detailBody').innerHTML.includes('send_message'));
+console.log('Cleanup UI checks pass: per-row action, safe preview escaping and read-only draft fallback.');

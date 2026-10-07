@@ -301,6 +301,13 @@ def scan_repo(repo):
             'branches': [dict(zip(('name', 'upstream', 'date', 'sha'), line.split('\t', 3))) for line in (branches or '').splitlines()]}
 
 
+def historical_project(row, repos):
+    """Saved origin is a fallback project identity, never current Git/ownership proof."""
+    remote = normalize_remote(row.get('git_origin_url') or '')
+    matches = [r['id'] for r in repos.values() if remote and r.get('remote') == remote]
+    return matches[0] if len(matches) == 1 else None
+
+
 class Board:
     def __init__(self):
         self.reader = CodexReader()
@@ -384,7 +391,9 @@ class Board:
             for row in rows:
                 ctx = contexts.get(row['id'], {})
                 observed = ctx.get('workdirs', [])
-                project_ids = list(dict.fromkeys([match_project(row['cwd'])] + [match_project(p) for p in observed]))
+                assigned_project = match_project(row['cwd'])
+                historical = historical_project(row, repos) if assigned_project == 'other' else None
+                project_ids = list(dict.fromkeys([historical or assigned_project] + [match_project(p) for p in observed]))
                 if len(project_ids) > 1 and 'other' in project_ids:
                     project_ids.remove('other')
                 title = row.get('name') or request_text(row.get('title', '')).split('\n')[0][:100] or 'Untitled chat'
@@ -397,7 +406,8 @@ class Board:
                      'requestAt': ctx.get('requestAt'), 'responseAt': ctx.get('responseAt'),
                      'contextError': ctx.get('contextError'), 'observedPaths': observed, 'prs': ctx.get('prs', []),
                      'commits': ctx.get('commits', []),
-                     'workspacePaths': [], 'link': 'codex://threads/' + row['id']}
+                     'workspacePaths': [], 'assignedFolderExists': Path(row['cwd']).is_dir() if local_path(row['cwd']) else None,
+                     'historicalProjectLink': bool(historical), 'link': 'codex://threads/' + row['id']}
                 t['workspacePaths'] = linked_workspaces([row['cwd']] + observed, workspaces, by_path)
                 for w in workspaces:
                     if w['path'] in t['workspacePaths'] and not t['archived']:
@@ -622,6 +632,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(502, {'error': 'GitHub details are unavailable. Local data is still available.'})
         assets = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'application/javascript'),
                   '/focus.js': ('focus.js', 'application/javascript'),
+                  '/cleanup.js': ('cleanup.js', 'application/javascript'),
                   '/style.css': ('style.css', 'text/css'), '/favicon.svg': ('favicon.svg', 'image/svg+xml'),
                   '/manifest.webmanifest': ('manifest.webmanifest', 'application/manifest+json'),
                   '/pwa.js': ('pwa.js', 'application/javascript'), '/sw.js': ('sw.js', 'application/javascript'),

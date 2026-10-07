@@ -85,6 +85,15 @@ class GitTests(unittest.TestCase):
         self.assertIsNone(result['upstreamComparison'])
 
 
+class HistoricalProjectTests(unittest.TestCase):
+    def test_removed_checkout_retains_project_by_saved_origin_only(self):
+        repos = {'r': {'id': 'r', 'remote': 'https://github.com/a/b'}}
+        self.assertEqual(server.historical_project({'git_origin_url': 'git@github.com:a/b.git'}, repos), 'r')
+        self.assertIsNone(server.historical_project({'cwd': '/missing/b'}, repos))
+        self.assertIsNone(server.historical_project({'git_origin_url': 'https://github.com/a/different'}, repos))
+        self.assertIsNone(server.historical_project({'git_origin_url': 'https://github.com/a/b'}, {**repos, 's': {'id': 's', 'remote': 'https://github.com/a/b'}}))
+
+
 class SourceTests(unittest.TestCase):
     def test_unsupported_codex_schema_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
