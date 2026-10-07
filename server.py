@@ -19,6 +19,7 @@ import webbrowser
 import sys
 import roadmaps
 import reliability
+import triage
 import logging
 
 ROOT = Path(__file__).resolve().parent
@@ -296,6 +297,7 @@ def scan_repo(repo):
 class Board:
     def __init__(self):
         self.reader = CodexReader()
+        self.triage = triage.Store(ROOT / ".runtime" / "triage.json")
         self.lock = threading.Lock()
         self.snapshot = None
         self.refreshing = False
@@ -417,7 +419,12 @@ class Board:
     def state(self):
         if not self.snapshot and not self.refreshing:
             self.refresh()
-        return {'data': self.snapshot, 'refreshing': self.refreshing, 'error': self.error}
+        try:
+            choices, choice_error = self.triage.read(), None
+        except (OSError, ValueError):
+            choices, choice_error = {}, 'Saved Workboard choices are unavailable. They have not been overwritten.'
+        return {'data': self.snapshot, 'refreshing': self.refreshing, 'error': self.error,
+                'choices': choices, 'choiceError': choice_error}
 
     def detail(self, thread_id):
         row = self.rows.get(thread_id)
@@ -604,6 +611,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self.send(502, {'error': 'GitHub details are unavailable. Local data is still available.'})
         assets = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'application/javascript'),
+                  '/focus.js': ('focus.js', 'application/javascript'),
                   '/style.css': ('style.css', 'text/css'), '/favicon.svg': ('favicon.svg', 'image/svg+xml'),
                   '/manifest.webmanifest': ('manifest.webmanifest', 'application/manifest+json'),
                   '/pwa.js': ('pwa.js', 'application/javascript'), '/sw.js': ('sw.js', 'application/javascript'),
@@ -618,6 +626,25 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.allowed():
             return
+        if self.path == '/api/triage':
+            if self.headers.get('X-Workboard-Action') != 'triage' or self.headers.get('Content-Type') != 'application/json':
+                return self.send(403, {'error': 'Use the Workboard discussion controls.'})
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 < length <= 8192:
+                    return self.send(400, {'error': 'Invalid request size.'})
+                data = json.loads(self.rfile.read(length))
+                thread = next((t for t in (BOARD.snapshot or {}).get('threads', []) if t['id'] == data.get('id')), None)
+                if not thread:
+                    return self.send(404, {'error': 'Refresh to load this discussion first.'})
+                if data.get('requestToken') != triage.request_token(thread):
+                    return self.send(409, {'error': 'This discussion changed. Refresh and review its latest request.'})
+                items = BOARD.triage.update(thread, data.get('status'), data.get('note', ''))
+                return self.send(200, {'choices': items})
+            except (ValueError, AttributeError, TypeError):
+                return self.send(400, {'error': 'Invalid choice or unreadable saved choices. No choices were overwritten.'})
+            except OSError:
+                return self.send(500, {'error': 'Could not save your choice. Try again; source projects are unchanged.'})
         if self.path == '/api/reveal':
             if self.headers.get('X-Workboard-Action')!='reveal' or self.headers.get('Content-Type')!='application/json':
                 return self.send(403, {'error': 'Use the Workboard Finder button.'})

@@ -103,3 +103,14 @@ PWA verification: `node test_pwa.cjs`.
 The per-user service is saved at `~/Library/LaunchAgents/com.bluelux.workboard.plist`. It runs the existing Python installation, binds only to 127.0.0.1:43127, and keeps the existing bounded service logs. It does not prevent sleep or require administrator privileges.
 
 From this folder, run `python3 service.py status` to check supervision, `python3 service.py disable` to stop it and disable future login startup, or `python3 service.py enable` to re-enable it. Disabling preserves the plist as a `.disabled` file. The service controls the background server; it does not reopen an intentionally closed app window.
+
+
+## Finish-first workflow
+
+The home view puts discussions with unfinished-work evidence in **Resume**, and lets you choose one **Focus now** discussion. Add a next-step note before leaving for the day. **Needs a decision** contains ambiguous or conflicting evidence; review once and choose Keep open, Mark complete, or Park. **Recently completed** shows completion reports or your closeout choices from the last 30 days. Activity includes older completed discussions. Roadmaps and backlog remain available below the queue and in Roadmap.
+
+Suggestions use saved user/assistant message timestamps, interruptions, explicit follow-up language and exact task-ID matches. They do not infer completion from a finished turn, clean checkout or commit/push alone. “Completion reported” is a conversation signal, not independently verified deployment or GitHub status. Source tasks stay separate and must be reconciled in their actual TASKS.md. Multiple project badges indicate the chat's assigned and observed project folders, not exclusive ownership.
+
+Your choices and notes are atomically saved in `.runtime/triage.json`, excluded from Git and shared by Safari and other local browsers. The service never changes Codex history or source repositories. New requests invalidate older choices; previously completed/parked discussions return for review. “Use suggestion” removes the local override. Missing/corrupt metadata is surfaced instead of silently overwriting it. This file is persistent local user data, not a disposable cache.
+
+Verification: `node test_focus.cjs`, `python3 -m unittest -q`, `node --check static/app.js`, `node test_pwa.cjs`.
