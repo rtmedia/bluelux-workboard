@@ -15,15 +15,15 @@ For a foreground server that stops with Ctrl-C, run `python3 server.py`. Port 43
 - Select a project, or keep All projects selected.
 - Overview prioritizes unfinished work, remaining delivery, project follow-up and verified recent completion.
 - History supports title/context/branch search and an archived-chat toggle. Click a card for the recent request, saved response, observed command folders, related checkouts, and **Open in Codex**.
-- Workspaces shows every discovered registered checkout, its real branch, file changes, shared chats, cached upstream comparison, and repository stashes.
+- Workspaces shows every discovered registered checkout, its current branch, file changes, historical chat associations, recommended next step, cached upstream comparison, and repository stashes.
 - **Check GitHub** reads current default-branch and pull-request data through the existing `gh` login. It does not fetch or change local branches.
 - The browser refreshes local status every 30 seconds while visible. Refresh is also available manually.
 
 ## Status meanings
 
 - **Blue / Recent:** conversation activity during the last seven days.
-- **Amber / Needs review:** local file changes. Shared folders mean those changes may belong to another chat.
-- **Green / Clean checkout:** no pending non-ignored file changes. This is not proof of a completed task, merged branch, or safe deletion.
+- **Amber / Local changes:** changed or untracked files. Shared folders mean those changes may belong to another chat.
+- **Gray / No file changes:** no pending non-ignored file changes. This is not proof of a completed task, merged branch, or safe deletion.
 - **Gray / Earlier or Unknown:** older activity or missing evidence.
 - **Red / Unavailable or Conflict:** failed source read or a Git conflict.
 
@@ -53,7 +53,7 @@ Python 3.10+ and Git are required. The existing GitHub CLI is optional for GitHu
 
 Workboard opens on **Example Project, Example Site, Example Service, Example Importer, Example Device and Workboard**. Other discovered projects are behind **Other projects**. Sidebar counts represent open recorded task items, not chat totals.
 
-- **Workboard:** one action queue. Click the Resume, Cleanup, In progress or Recently completed dashboard card to filter it; Overview restores the combined view. Needs review contains discussions with uncertain evidence. Filters are temporary views, not saved task statuses.
+- **Workboard:** one action queue. Click the Resume, Cleanup, In progress or Recently completed dashboard card to filter it; Overview restores the combined view. Reconcile / verify prioritizes task-linked contradictions and recent uncertain discussions. Older unlinked uncertainty stays in History. Filters are temporary views, not saved task statuses.
 - **Roadmap:** open, in-progress, next, done and deferred filters. Click a task to read its remaining checklist, source location, directly matching task-ID conversations, and chats linked to the source checkout.
 - **Library:** agent instructions, design/architecture documents, plans, task files, configuration and reference files. Filter by category, search inside file contents, and browse readable sections with source paths and versions.
 - **History:** indexed discussions in date order, with search and an archived-chat toggle. It is for retrieving past context, without repeating the action queue.
@@ -111,9 +111,9 @@ From this folder, run `python3 service.py status` to check supervision, `python3
 
 The home view prioritizes **Resume**, **Finish delivery**, **Project follow-up**, **Recently completed** and **Evidence unclear**. Classification comes from recorded source evidence; there are no saved focus, completion/parking overrides or next-step notes, and the old triage write API rejects requests. Workboard is a reader, not a second task ledger.
 
-A contextual **Continue**, **Finish delivery** or **Reconcile state** button copies a scoped prompt and opens the exact chat. **Reconcile project** in Roadmap and Library prepares an artifact-review prompt and lists project-associated chats for the user to choose. Workboard does not choose ownership from recency and never submits the prompt. Read-only prompt previews and manual-copy fallbacks remain available.
+A contextual **Continue**, **Finish delivery** or **Reconcile status** button copies a scoped prompt and opens the exact chat. **Reconcile project** in Roadmap and Library prepares an artifact-review prompt and lists project-associated chats for the user to choose. Workboard does not choose ownership from recency and never submits the prompt. Read-only prompt previews and manual-copy fallbacks remain available.
 
-The latest request, interruptions, remaining steps and exact task-ID links inform the queue. Cited commits/PRs are independently checked against the default branch. A later unfinished work unit can keep a conversation in Resume while earlier delivery badges remain visible. Source task status must be corrected in the project, not overridden here. Unknown local-only/cloud-only completion stays explicit.
+The latest request, interruptions, remaining steps and exact task-ID links inform the queue. Cited commits/PRs are independently checked against the default branch. A later unfinished work unit can keep a conversation in Resume; earlier delivery evidence stays in its details, without a competing completion badge. Source task status must be corrected in the project, not overridden here. Unknown local-only/cloud-only completion stays explicit.
 
 Verification: `node test_focus.cjs`, `python3 -m unittest -q`, `node --check static/app.js`, `node test_pwa.cjs`.
 
@@ -121,7 +121,7 @@ Verification: `node test_focus.cjs`, `python3 -m unittest -q`, `node --check sta
 
 The delivery milestone is a work unit's explicit PR or labelled commit appearing on the current GitHub default branch (main in the core projects). GitHub is read through the existing `gh` sign-in; no fetch, checkout, branch deletion or source-repository writes occur. Background checks are separate from local inventory/health, use a five-minute remote cache, publish repository results as they finish, and bound each repository check to roughly 90 seconds plus an outstanding request. **Check delivery now** bypasses the remote cache. Coverage limits and unavailable evidence are displayed.
 
-**Resume** contains unfinished execution/delivery, with a separate list for local changes and unfinished branches that may span chats. **In progress** counts started source tasks/plans needing follow-up. **Recently completed** contains cited work verified on the default branch. A newer request reopens a discussion; sharing a clean/main checkout never completes every linked chat. **Evidence unclear** is kept separate from concrete cleanup obligations.
+**Resume** contains unfinished execution/delivery. Local changes and unfinished branches that may span chats appear under **Preserve / reconcile** in Overview and Reconcile / verify. **In progress** counts started source tasks/plans needing follow-up. **Recently completed** contains cited work verified on the default branch. A newer request reopens a discussion; sharing a clean/main checkout never completes every linked chat. **Evidence unclear** is kept separate from concrete cleanup obligations.
 
 **Cleanup** lists delivered branches and extra worktrees separately from completion. A completed item can display **On main · Cleanup pending**. Exact PR-head matching plus merge-commit ancestry handles squash/rebase merges; newer commits on a branch remain protected. Local and remote leftovers are distinguished. Default/protected branches and primary checkouts are retained. Changed, untracked, ignored, locked and otherwise unverified work is flagged for inspection. No deletion button exists: an actual cleanup requires a separate exact-target inspection and approval under the local deletion policy. Repository stashes are counted separately.
 
@@ -162,3 +162,19 @@ Cleanup is a Workboard filter, not a separate tab. In progress lists started/blo
 Chat details have one status/action panel, a collapsed evidence section, and the request/response context. Click outside the flyout, press Escape, or use its close button to dismiss it. Clean up session copies the prompt during the click and requests navigation to the exact `codex://threads/...` link. Paste with Command-V and send in Codex; auto-paste and auto-send are not performed. A visible prompt and direct link remain if clipboard access or app opening fails. Browser navigation cannot confirm that Codex actually displayed the destination.
 
 In Workspaces, **Review cleanup in Codex** prepares a prompt limited to the exact indexed checkout and its directly associated temporary branch. Choose a linked chat to copy and open it, or copy only when no appropriate chat is listed. Association does not prove ownership. Codex must inspect fresh state, keep primary checkouts/default branches, preserve unfinished/shared/ignored data, and ask about concrete uncertain targets or deletion approval. The dashboard never deletes folders or creates preservation artifacts.
+
+
+## Evidence-based next actions
+
+The sidebar explicitly labels **open tasks**, with a project-level breakdown of in-progress/blocked and planned items. This is not the number of unfinished chats or checkouts. The banner names the selected task-file branch, file commit date and version count. The default still uses the newest local file commit; it does not silently claim that branch is authoritative.
+
+An exact task-ID match connects an old chat to its selected project task record. If an old handoff says work remains while the record says Done or Deferred, the discussion moves to **Reconcile status**, outside Resume. The detail shows the dated chat, matched records and exact source path. A file commit date is not a task-completion timestamp. New unanswered requests and interrupted turns retain their own priority; mixed scopes remain explicit. Reconciliation verifies later work against code, delivery and original records before restarting anything. It does not automatically mark the chat completed from a checkbox. Task-linked conflicts are prioritized; older unlinked uncertainty remains searchable in History.
+
+Checkout recommendations are independent of chat completion:
+
+- **Keep primary checkout:** retain the shared project home; reconcile unresolved changes in place.
+- **Preserve · reconcile work:** changed/untracked files or unique/unverified branch work need investigation before cleanup.
+- **Verify delivery · keep for now:** delivery evidence is missing, stale or does not match the checkout tip.
+- **Review cleanup:** current matching delivery evidence identifies temporary leftovers; Codex still checks ownership, ignored files, active use and deletion rules.
+
+Chat-folder links describe historical use, not exclusive ownership. The displayed branch is checked out now, not necessarily the branch used by the old chat. Counts of historical chat links are not active-user counts. Recommendation-specific prompts carry the exact folder and evidence into Codex; they never create stashes, backup branches, bundles or another checkout merely to avoid a decision.

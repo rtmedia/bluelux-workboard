@@ -88,3 +88,47 @@ dialog.open=true;fire('pointerdown',600);fire('click',600);assert(dialog.open);
 fire('pointerdown',600);fire('click',100);assert(dialog.open);
 fire('pointerdown',100);fire('click',100);assert.equal(dialog.open,false);
 console.log('Queue interaction checks pass: filter isolation, one flyout action, checkout routing, unknown ownership and backdrop dismissal.');
+
+
+// Use the real scenario shape: an old handoff plus a newer selected file marked DONE.
+vm.runInContext(`
+state.data.documents=[{id:'taskdoc',relative:'TASKS.md',source:{path:'/newer/TASKS.md',branch:'feature',committedAt:1790899200,modified:false},sources:[{workspace:'/newer',path:'/newer/TASKS.md',branch:'feature'}],taskCounts:{done:1}}];
+state.data.roadmaps[0]={projectId:'r',sourceId:'taskdoc',alternates:['taskdoc'],planIds:[],tasks:[{key:'DESIGN3',title:'DESIGN3 audit',status:'done',checks:[]}]};
+state.data.threads=[{id:'old',title:'Continue DESIGN3 audit',projectIds:['r'],workspacePaths:['/repo'],cwd:'/repo',requestAt:'2026-05-16',responseAt:'2026-05-17',response:'DESIGN3 still needs the broader QA pass.',turnState:'finished',prs:[],lastMessageAt:'2026-05-17',link:'codex://threads/old'}];
+state.data.workspaces[0].primary=true;state.data.workspaces[0].chatIds=['old'];state.data.workspaces[0].files=[];state.data.workspaces[0].ignoredPaths=[];
+state.project='r';state.view='overview';state.boardFilter='review';render();showChat('old');`,context);
+html=elements.get('#detailBody').innerHTML;
+assert(html.includes('Reconcile status'));assert(!html.includes('>Continue ↗'));
+assert(html.includes('DESIGN3 · Done'));assert(html.includes(new Date(1790899200000).toLocaleString()));assert(!html.includes('58720')); assert(html.includes('/newer/TASKS.md'));
+assert(html.includes('Shared primary checkout — keep'));assert(html.includes('Current branch: main'));
+assert(!html.includes('Delivery verified'));
+vm.runInContext("state.boardFilter='resume';render();",context);
+assert(!elements.get('#content').innerHTML.includes('Continue DESIGN3 audit'));
+vm.runInContext("state.view='workspaces';render();",context);
+html=elements.get('#content').innerHTML;
+assert(html.includes('Keep primary checkout'));assert(html.includes('Reconcile local changes')||html.includes('Review primary checkout'));
+assert(html.includes('historical chat links'));assert(html.includes('Current branch'));
+assert(html.includes('0 open tasks = 0 in progress / blocked + 0 planned'));
+assert(elements.get('#projects').innerHTML.includes('0 tasks'));
+vm.runInContext("state.workflowDraft=handoffPrompt('reconcile-chat',state.data.threads[0],null);",context);
+draft=vm.runInContext('state.workflowDraft',context);
+assert(draft.startsWith('Reconcile the current status'));assert(!draft.startsWith('Pick up'));
+assert(draft.includes('DESIGN3'));assert(draft.includes('/newer/TASKS.md'));assert(draft.includes('not necessarily the completion date'));
+// Version browsing must work independently of the currently selected workspace.
+assert(vm.runInContext("versionsBody('r')",context).includes('/newer/TASKS.md'));
+console.log('Decision UI checks pass: source-labelled counts, DESIGN3 reconciliation, primary/current-branch distinctions, scoped prompt and version browsing.');
+
+// A fresher local scan protects shared work even before the next delivery scan.
+vm.runInContext(`state.data.threads[0].response='Done.';state.data.threads[0].prs=['https://github.com/o/r/pull/1'];state.delivery={repositories:[{repoId:'r',remote:'https://github.com/o/r',defaultCommit:'main',checkedAt:new Date().toISOString(),pullRequests:{'https://github.com/o/r/pull/1':{state:'included',sha:'tip',branch:'feature'}},units:[{state:'included',sha:'tip',branch:'feature',cleanup:true,paths:['/repo']}]}]};`,context);
+assert(vm.runInContext('sessionAction(state.data.threads[0])',context).includes('Reconcile related local work'));
+assert(!vm.runInContext('sessionAction(state.data.threads[0])',context).includes('Clean up session'));
+
+// Old unlinked ambiguity belongs in History, not an ever-growing action queue.
+vm.runInContext(`state.data.threads.push({id:'historical',title:'Old question',projectIds:['r'],workspacePaths:[],request:'What is this?',response:'Here is an explanation.',responseAt:'2026-01-01',lastMessageAt:'2026-01-01'});`,context);
+assert(!vm.runInContext('discussionGroups().review.some(t=>t.id==="historical")',context));
+assert(vm.runInContext('threads().some(t=>t.id==="historical")',context));
+
+vm.runInContext(`state.delivery.repositories[0].units.push({state:'included',sha:'tip',branch:'feature',cleanup:true,paths:[]});showChat('old');`,context);
+assert(elements.get('#detailBody').innerHTML.includes('Reconcile related local work'));
+assert(!elements.get('#detailBody').innerHTML.includes('Preview cleanup prompt'));
+assert(!elements.get('#detailBody').innerHTML.includes('Cleanup pending'));

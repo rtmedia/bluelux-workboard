@@ -29,7 +29,7 @@ assert.equal(state('Changes applied.',{request:'AUTH90'},[active]).bucket,'revie
 assert.equal(state('Changes applied.',{},[{...active,status:'done'}]).bucket,'review');
 assert.equal(state('Changes applied.',{},[active]).next,'Check sign-in on device');
 const url='https://github.com/a/b/pull/9';
-const report={repositories:[{repoId:'project-a',remote:'https://github.com/a/b',checkedAt:new Date().toISOString(),defaultBranch:'main',defaultCommit:'main',units:[{branch:'fix',sha:'head',cleanup:true}],pullRequests:{[url]:{state:'included',sha:'head',branch:'fix'}},commits:{abc1234:{sha:'head',state:'included'}}}]};
+const report={repositories:[{repoId:'project-a',remote:'https://github.com/a/b',checkedAt:new Date().toISOString(),defaultBranch:'main',defaultCommit:'main',units:[{branch:'fix',sha:'head',state:'included',cleanup:true}],pullRequests:{[url]:{state:'included',sha:'head',branch:'fix'}},commits:{abc1234:{sha:'head',state:'included'}}}]};
 const delivered={...base,prs:[url],response:'Committed and pushed.'};
 const proof=evidence(delivered,report);
 assert.equal(proof.included,true);assert.equal(proof.cleanup.length,1);
@@ -51,3 +51,48 @@ assert.equal(classify({...delivered,response:'Done. Next steps: delete the branc
 assert.equal(classify({...delivered,response:'Done 2 of 3 steps.'},[],proof).bucket,'review');
 
 assert.equal(classify({...delivered,response:'Done. Next steps: delete the branch. Next steps: implement the missing form.'},[],proof).bucket,'resume');
+
+
+// A historical handoff cannot silently override a closed selected task record.
+const doneTask={...active,status:'done',source:{path:'/repo/TASKS.md',branch:'feature',committedAt:1790899200},checks:[{done:true,text:'Verify'}]};
+const oldChat={...base,title:'Continue AUTH9 audit',request:'Summarize where we left off',response:'AUTH9 still needs the broader QA pass.',responseAt:'2026-05-17',requestAt:'2026-05-16'};
+let decision=classify(oldChat,[doneTask],proof);
+assert.equal(decision.bucket,'review');assert.equal(decision.action,'reconcile');assert.equal(decision.label,'Reconcile status');assert(decision.newerFile);
+assert.equal(decision.records[0].source.path,'/repo/TASKS.md');
+assert.equal(classify(oldChat,[{...doneTask,source:{...doneTask.source,modified:true}}],proof).newerFile,false);
+assert.equal(classify(oldChat,[{...doneTask,source:null}],proof).bucket,'review');
+assert.equal(classify(oldChat,[{...doneTask,status:'deferred'}],proof).bucket,'review');
+assert.equal(classify(oldChat,[{...doneTask,projectId:'other'}],proof).bucket,'resume');
+assert.equal(classify({...oldChat,title:'AUTH90',response:'AUTH90 still needs QA'},[doneTask],proof).bucket,'resume');
+assert.equal(classify({...oldChat,requestIsRecent:true,requestAt:'2026-10-10'},[doneTask],proof).bucket,'resume');
+assert.equal(classify({...oldChat,turnState:'interrupted'},[doneTask],proof).bucket,'resume');
+assert.equal(classify({...oldChat,response:'AUTH9 and FORM1 still need QA'},[doneTask,{...active,key:'FORM1'}],proof).bucket,'review');
+assert.equal(classify({...oldChat,response:'AUTH9 still needs QA'},[doneTask],{refs:[{state:'outside'}],included:false,cleanup:[]}).bucket,'review');
+assert.equal(classify({...oldChat,request:'Discuss AUTH90',title:'AUTH90',response:'```AUTH9 still needs work```\nAUTH90 still needs QA'},[doneTask],proof).bucket,'resume');
+console.log('Task reconciliation checks pass: historical follow-up, done/deferred records, provenance, mixed scope and newer requests.');
+
+const {workspaceDecision,unitDecision}=require('./static/focus.js');
+const checkout={path:'/extra',repoId:'project-a',head:'head',branch:'fix',fileCount:0,ignoredCount:0,chatIds:[]};
+const unit={id:'unit',sha:'head',paths:['/extra'],state:'included',cleanup:true,pending:false,blockers:[],evidenceFresh:true};
+const repo={repoId:'project-a',defaultCommit:'main',checkedAt:new Date().toISOString(),units:[unit]};
+assert.equal(workspaceDecision(checkout,[repo]).kind,'cleanup');
+assert.equal(workspaceDecision({...checkout,primary:true},[repo]).kind,'keep');
+assert.equal(workspaceDecision({...checkout,label:'Primary checkout'},[repo]).kind,'keep');
+assert.equal(workspaceDecision({...checkout,fileCount:1},[repo]).kind,'preserve');
+assert.equal(workspaceDecision({...checkout,error:'unreadable'},[repo]).kind,'preserve');
+assert.equal(workspaceDecision({...checkout,head:'new-tip'},[repo]).kind,'verify');
+assert.equal(workspaceDecision(checkout,[{...repo,checkedAt:'2020-01-01'}]).kind,'verify');
+assert.equal(workspaceDecision(checkout,[]).kind,'verify');
+assert.equal(unitDecision({...unit,primaryRetained:true,pending:true},[checkout]).kind,'keep');
+assert.equal(unitDecision({...unit,pending:true},[checkout]).kind,'preserve');
+assert.equal(unitDecision(unit,[{...checkout,fileCount:1}]).kind,'preserve');
+assert.equal(unitDecision({...unit,blockers:['Ignored content needs inspection']},[checkout]).kind,'cleanup');
+const pendingReport={repositories:[{...repo,remote:'https://github.com/a/b',units:[{...unit,branch:'fix',pending:true}],pullRequests:{[url]:{state:'included',branch:'fix',sha:'head'}}}]};
+assert.equal(evidence(delivered,pendingReport).cleanup.length,0);
+console.log('Checkout decisions pass: primary protection, dirty work, expired/mismatched delivery, unknown origin and guarded cleanup candidates.');
+
+// Short real ledger IDs still match exactly; quoted examples and ID prefixes do not.
+const shortTask={...doneTask,key:'AI7'};
+assert.equal(classify({...base,request:'Review AI7',response:'AI7 still needs verification.'},[shortTask]).label,'Reconcile status');
+assert.notEqual(classify({...base,request:'Review AI70',response:'AI70 still needs verification.'},[shortTask]).label,'Reconcile status');
+assert.equal(classify({...base,response:'Done.'},[active]).records[0].key,'AUTH9');

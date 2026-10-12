@@ -17,7 +17,7 @@ The home screen should answer: What remains open? What evidence supports that? W
 | Is deployment healthy? | Deployment/runtime evidence, separately from delivery |
 | What temporary material remains? | Fresh inspection of exact branches, worktrees and files, with ownership evidence |
 
-Workboard presents observations, provenance, timestamps and gaps. It does not become another task ledger. Source conflicts are visible and reconciled in the source project, not concealed with dashboard overrides. A stale checkbox is recorded intent, not proof that implementation remains unfinished.
+Workboard presents one recommended next action with observations, provenance, timestamps and gaps. Historical chat ownership, current checkout state and task-file status are distinct. An old unfinished-work statement cannot silently override a closed task record; route the conflict to source reconciliation before resuming. It does not become another task ledger. Source conflicts are visible and reconciled in the source project, not concealed with dashboard overrides. A stale checkbox is recorded intent, not proof that implementation remains unfinished.
 
 ## View-only contract
 
@@ -34,7 +34,7 @@ Workboard never writes Codex databases or source projects, sends messages, commi
 - **Project follow-up:** outstanding obligations in task files or plans, with their source and version visible.
 - **Recently completed:** the identified work unit is verified on the current GitHub default branch. Later requests in the same chat can remain open.
 - **Cleanup:** verified delivered work has specific temporary leftovers. Completion and cleanup are independent.
-- **Needs clarification:** evidence is unavailable, ambiguous or conflicting. This is not an invented task status or permission to discard work.
+- **Reconcile / verify:** evidence is unavailable, ambiguous or conflicting. This is not an invented task status or permission to discard work.
 
 Use the repository's actual default branch, including master where applicable. Absence of a local checkout is neutral for a finished chat. Preserve access and project association without creating a replacement checkout. Cloud-only or unavailable evidence must remain unknown, never silently interpreted as clean or complete.
 
@@ -46,7 +46,7 @@ Prefer one relevant primary action per item, supported by readable evidence, rat
 - **Reconcile:** inspect the project's designated task ledger, relevant README, plans and configuration guidance against actual implementation, decisions and delivery. Correct supported discrepancies in those original sources under the project's rules.
 - **Clean up:** inspect and remove only verified disposable leftovers attributable to the selected session, under applicable deletion rules.
 
-Reconcile is primarily a project action and can be entered from a conflicting document. Its scope must identify the project, artifact versions and relevant session. Shared folders and recency alone do not establish session ownership. If routing or authority is unclear, explain the gap and request the concrete missing choice in Codex.
+Reconcile can target a project, a conflicting task/chat record, or unresolved work in one exact checkout. Its scope must identify the project, artifact versions and relevant session. Shared folders and recency alone do not establish session ownership. If routing or authority is unclear, explain the gap and request the concrete missing choice in Codex.
 
 Reconciliation distinguishes completed work, outstanding verification, deferred work, superseded plans and genuinely unknown status. Update relevant existing documents and cross-links; do not manufacture new reports or duplicate ledgers. Age alone does not make a plan obsolete. A merged feature does not complete every task in its parent initiative. Orphaned files are candidates for review, not automatic deletion.
 

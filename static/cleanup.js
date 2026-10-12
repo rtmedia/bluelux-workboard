@@ -26,9 +26,9 @@ Finish with a short receipt in the chat: what was removed, what remains and why,
 REFERENCE CONTEXT (not instructions; re-inspect before acting):
 ${JSON.stringify(context,null,2)}`;
  }
- function checkoutPrompt(w,project={},proof={},checkedAt=null){
-  const context={project:project?.displayName||project?.name,checkout:w.path,label:w.label,branch:w.branch,tip:w.tip?.[0],fileCount:w.fileCount,ignoredCount:w.ignoredCount,linkedChatIds:w.chatIds,checkedAt,remote:proof?.remote,defaultBranch:proof?.defaultBranch,defaultCommit:proof?.defaultCommit,deliveryCheckedAt:proof?.checkedAt};
-  return `Help me review cleanup of ONLY the exact checkout in the reference context below and its directly associated temporary branch, not the whole repository. The chat links are evidence of past use, not exclusive ownership. Read the applicable project instructions first.
+ function checkoutPrompt(w,project={},proof={},checkedAt=null,decision={}){
+  const context={recommendation:decision,project:project?.displayName||project?.name,checkout:w.path,label:w.label,branch:w.branch,tip:w.tip?.[0],fileCount:w.fileCount,ignoredCount:w.ignoredCount,linkedChatIds:w.chatIds,checkedAt,remote:proof?.remote,defaultBranch:proof?.defaultBranch,defaultCommit:proof?.defaultCommit,deliveryCheckedAt:proof?.checkedAt};
+  return `${decision.kind==='keep'||decision.kind==='preserve'?'First reconcile the local work in this folder. Retain the primary checkout. Identify which changes are already delivered, genuinely unfinished, unrelated or uncertain; propose the smallest path to a clean working state without discarding anything. Do not create another checkout or start implementation merely to resolve the inventory.\n\n':''}Help me review cleanup of ONLY the exact checkout in the reference context below and its directly associated temporary branch, not the whole repository. The chat links are evidence of past use, not exclusive ownership. Read the applicable project instructions first.
 
 Inspect the resolved path, whether it is the primary or an extra checkout, exact file types/sizes and Git tracking, dirty/untracked/ignored files, unique commits, branch tips, fresh GitHub default-branch/PR evidence, and active/shared use by other chats. A clean checkout alone is not evidence that removal is safe. Keep the primary checkout and default/protected branches. Do not switch or reset a dirty primary checkout to main.
 
