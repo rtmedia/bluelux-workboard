@@ -98,7 +98,7 @@ state.data.threads=[{id:'old',title:'Continue DESIGN3 audit',projectIds:['r'],wo
 state.data.workspaces[0].primary=true;state.data.workspaces[0].chatIds=['old'];state.data.workspaces[0].files=[];state.data.workspaces[0].ignoredPaths=[];
 state.project='r';state.view='overview';state.boardFilter='review';render();showChat('old');`,context);
 html=elements.get('#detailBody').innerHTML;
-assert(html.includes('Reconcile status'));assert(!html.includes('>Continue ↗'));
+assert(html.includes('Task closed in ledger'));assert(html.includes('Open history ↗'));assert(!html.includes('>Continue ↗'));assert(!html.includes('Copies a prompt and opens this chat.'));
 assert(html.includes('DESIGN3 · Done'));assert(html.includes(new Date(1790899200000).toLocaleString()));assert(!html.includes('58720')); assert(html.includes('/newer/TASKS.md'));
 assert(html.includes('Shared primary checkout — keep'));assert(html.includes('Current branch: main'));
 assert(!html.includes('Delivery verified'));
@@ -132,3 +132,16 @@ vm.runInContext(`state.delivery.repositories[0].units.push({state:'included',sha
 assert(elements.get('#detailBody').innerHTML.includes('Reconcile related local work'));
 assert(!elements.get('#detailBody').innerHTML.includes('Preview cleanup prompt'));
 assert(!elements.get('#detailBody').innerHTML.includes('Cleanup pending'));
+
+// Historical follow-up stays searchable but never offers an automatic Continue.
+vm.runInContext(`state.data.threads.push({id:'past-followup',title:'Past follow-up',projectIds:['r'],workspacePaths:[],requestAt:'2020-01-01',responseAt:'2020-01-02',lastMessageAt:'2020-01-02',response:'Still needs a rethink.',link:'codex://threads/past-followup'});state.view='overview';state.boardFilter='resume';render();`,context);
+assert(!elements.get('#content').innerHTML.includes('Past follow-up'));
+vm.runInContext(`state.view='chats';render();showChat('past-followup');`,context);
+assert(elements.get('#content').innerHTML.includes('Past follow-up'));
+assert(elements.get('#detailBody').innerHTML.includes('Historical discussion'));
+assert(elements.get('#detailBody').innerHTML.includes('Open history ↗'));
+assert(!elements.get('#detailBody').innerHTML.includes('>Continue ↗'));
+// Recent contradictory evidence still requests source reconciliation.
+vm.runInContext(`state.data.threads[0].response='DESIGN3 still needs QA';state.data.threads[0].responseAt=new Date().toISOString();state.data.threads[0].prs=[];showChat('old');`,context);
+assert(elements.get('#detailBody').innerHTML.includes('Reconcile status'));
+console.log('Historical UI checks pass: discoverable history, no Continue for old prose, recent conflicts still reconciled.');

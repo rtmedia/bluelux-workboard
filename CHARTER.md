@@ -29,7 +29,7 @@ Workboard never writes Codex databases or source projects, sends messages, commi
 
 ## Work states
 
-- **Resume:** evidence of unfinished execution or a later request, including interrupted work and undelivered local changes. Repository membership alone does not assign work to a chat.
+- **Resume:** unfinished execution or a later request supported by dated conversation activity within 30 days. Old unanswered requests, interruptions and follow-up prose remain in History, without being declared complete. Current open PRs remain delivery obligations and open source tasks remain in Roadmap. Repository membership or shared-folder changes alone do not assign work to a chat.
 - **Finish delivery:** a concrete remaining verification, push, review or merge step for a work unit. Feature-branch pushes are not default-branch delivery.
 - **Project follow-up:** outstanding obligations in task files or plans, with their source and version visible.
 - **Recently completed:** the identified work unit is verified on the current GitHub default branch. Later requests in the same chat can remain open.

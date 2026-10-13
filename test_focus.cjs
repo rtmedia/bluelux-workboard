@@ -1,4 +1,6 @@
 const assert=require('node:assert/strict');
+// Freeze the clock so freshness boundaries do not drift as these fixtures age.
+Date.now=()=>Date.parse('2026-10-12T12:00:00Z');
 const {classify,evidence}=require('./static/focus.js');
 const base={id:'a',projectIds:['project-a'],requestIsRecent:true,request:'Fix AUTH9',requestAt:'2026-10-01T10:00:00Z',responseAt:'2026-10-01T11:00:00Z',response:'Here is an explanation.',turnState:'finished'};
 const state=(response,extra={},tasks=[])=>classify({...base,response,...extra},tasks);
@@ -57,18 +59,18 @@ assert.equal(classify({...delivered,response:'Done. Next steps: delete the branc
 const doneTask={...active,status:'done',source:{path:'/repo/TASKS.md',branch:'feature',committedAt:1790899200},checks:[{done:true,text:'Verify'}]};
 const oldChat={...base,title:'Continue AUTH9 audit',request:'Summarize where we left off',response:'AUTH9 still needs the broader QA pass.',responseAt:'2026-05-17',requestAt:'2026-05-16'};
 let decision=classify(oldChat,[doneTask],proof);
-assert.equal(decision.bucket,'review');assert.equal(decision.action,'reconcile');assert.equal(decision.label,'Reconcile status');assert(decision.newerFile);
+assert.equal(decision.bucket,'history');assert.equal(decision.label,'Task closed in ledger');
 assert.equal(decision.records[0].source.path,'/repo/TASKS.md');
-assert.equal(classify(oldChat,[{...doneTask,source:{...doneTask.source,modified:true}}],proof).newerFile,false);
-assert.equal(classify(oldChat,[{...doneTask,source:null}],proof).bucket,'review');
-assert.equal(classify(oldChat,[{...doneTask,status:'deferred'}],proof).bucket,'review');
-assert.equal(classify(oldChat,[{...doneTask,projectId:'other'}],proof).bucket,'resume');
-assert.equal(classify({...oldChat,title:'AUTH90',response:'AUTH90 still needs QA'},[doneTask],proof).bucket,'resume');
+assert.equal(classify(oldChat,[{...doneTask,source:{...doneTask.source,modified:true}}],proof).bucket,'history');
+assert.equal(classify(oldChat,[{...doneTask,source:null}],proof).bucket,'history');
+assert.equal(classify(oldChat,[{...doneTask,status:'deferred'}],proof).bucket,'history');
+assert.equal(classify(oldChat,[{...doneTask,projectId:'other'}],proof).bucket,'history');
+assert.equal(classify({...oldChat,title:'AUTH90',response:'AUTH90 still needs QA'},[doneTask],proof).bucket,'history');
 assert.equal(classify({...oldChat,requestIsRecent:true,requestAt:'2026-10-10'},[doneTask],proof).bucket,'resume');
-assert.equal(classify({...oldChat,turnState:'interrupted'},[doneTask],proof).bucket,'resume');
-assert.equal(classify({...oldChat,response:'AUTH9 and FORM1 still need QA'},[doneTask,{...active,key:'FORM1'}],proof).bucket,'review');
-assert.equal(classify({...oldChat,response:'AUTH9 still needs QA'},[doneTask],{refs:[{state:'outside'}],included:false,cleanup:[]}).bucket,'review');
-assert.equal(classify({...oldChat,request:'Discuss AUTH90',title:'AUTH90',response:'```AUTH9 still needs work```\nAUTH90 still needs QA'},[doneTask],proof).bucket,'resume');
+assert.equal(classify({...oldChat,turnState:'interrupted'},[doneTask],proof).bucket,'history');
+assert.equal(classify({...oldChat,response:'AUTH9 and FORM1 still need QA'},[doneTask,{...active,key:'FORM1'}],proof).bucket,'progress');
+assert.equal(classify({...oldChat,response:'AUTH9 still needs QA'},[doneTask],{refs:[{state:'outside'}],included:false,cleanup:[]}).bucket,'history');
+assert.equal(classify({...oldChat,request:'Discuss AUTH90',title:'AUTH90',response:'```AUTH9 still needs work```\nAUTH90 still needs QA'},[doneTask],proof).bucket,'history');
 console.log('Task reconciliation checks pass: historical follow-up, done/deferred records, provenance, mixed scope and newer requests.');
 
 const {workspaceDecision,unitDecision}=require('./static/focus.js');
@@ -96,3 +98,18 @@ const shortTask={...doneTask,key:'AI7'};
 assert.equal(classify({...base,request:'Review AI7',response:'AI7 still needs verification.'},[shortTask]).label,'Reconcile status');
 assert.notEqual(classify({...base,request:'Review AI70',response:'AI70 still needs verification.'},[shortTask]).label,'Reconcile status');
 assert.equal(classify({...base,response:'Done.'},[active]).records[0].key,'AUTH9');
+
+// Historical queue regressions: metadata/shared folders never establish fresh work.
+const historicalChat={...oldChat,title:'Past discussion',request:'Summarize this',response:'Done. The database test could not complete.',updatedAt:Date.now()/1000,workspacePaths:['/shared']};
+assert.equal(classify(historicalChat).bucket,'history');
+assert.equal(classify({...historicalChat,response:'',responseAt:null,turnState:'started'}).bucket,'history');
+assert.equal(classify({...historicalChat,turnState:'interrupted'}).bucket,'history');
+assert.equal(classify({...historicalChat,requestAt:'2026-10-12T11:00:00Z',turnState:'started'}).bucket,'resume');
+assert.equal(classify({...historicalChat,lastEventAt:'2026-10-12T11:00:00Z',turnState:'interrupted'}).bucket,'resume');
+assert.equal(classify(historicalChat,[],{refs:[{state:'outside'}],included:false,cleanup:[]}).bucket,'history');
+assert.equal(classify(historicalChat,[],{refs:[{state:'open'}],included:false,cleanup:[]}).bucket,'delivery');
+assert.equal(classify({...historicalChat,request:'Continue AUTH9'},[active]).bucket,'progress');
+assert.equal(classify({...historicalChat,requestAt:null,responseAt:null,lastEventAt:null}).bucket,'history');
+assert.equal(classify({...historicalChat,responseAt:new Date(Date.now()-30*864e5+1).toISOString()}).bucket,'resume');
+assert.equal(classify({...historicalChat,responseAt:new Date(Date.now()-30*864e5-1).toISOString()}).bucket,'history');
+console.log('Historical queue gates pass; current requests, interruptions, task obligations and open PRs remain actionable.');

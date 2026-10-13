@@ -13,13 +13,17 @@ const WorkboardFocus = (() => {
   return {refs,included,units,cleanup:units.filter(u=>u.decision.kind==='cleanup'),branches:[...new Set(refs.map(ref=>repos.find(r=>r.repoId===ref.repoId)?.defaultBranch).filter(Boolean))]};
  }
  function matchesTask(k,t){const body=(t.response||'').replace(/```[\s\S]*?```/g,'').replace(/^\s*>.*$/gm,'');return (t.projectIds||[]).includes(k.projectId)&&/^[A-Z][A-Z0-9-]+$/.test(k.key)&&/[0-9-]/.test(k.key)&&new RegExp('(^|[^A-Za-z0-9-])'+k.key+'([^A-Za-z0-9-]|$)').test([t.title,t.request,body].join(' '));}
- function classify(t,tasks=[],proof={refs:[],included:false,cleanup:[]}){
+ function classify(t,tasks=[],proof={refs:[],included:false,cleanup:[]},now=Date.now()){
+  // Index update time and shared checkout changes are not fresh conversation evidence.
+  const stamps=[t.requestAt,t.responseAt,t.lastEventAt].map(Date.parse).filter(Number.isFinite);
+  const current=stamps.length>0&&now-Math.max(...stamps)<=30*864e5;
+  const historical=()=>result('history','Historical discussion','No conversation activity in the last 30 days establishes work to resume. This is not a completion claim.','Use the current project roadmap; inspect this chat as historical context.');
   if(t.contextError)return result('review','History unavailable','The latest conversation could not be read.');
-  if(t.requestIsRecent&&t.requestAt&&(!t.responseAt||Date.parse(t.requestAt)>Date.parse(t.responseAt)))return result('resume','Reply pending','The latest saved user request has no later final reply.','Open in Codex to check or continue the latest request.');
-  if(t.turnState==='interrupted')return result('resume','Interrupted','The last saved turn was interrupted.','Check where the work stopped, then continue it.');
-  if(!t.responseAt||!t.response)return result('review','Status unknown','No recent final response is available.');
+  if(current&&t.requestIsRecent&&t.requestAt&&(!t.responseAt||Date.parse(t.requestAt)>Date.parse(t.responseAt)))return result('resume','Reply pending','The latest saved user request has no later final reply.','Open in Codex to check or continue the latest request.');
+  if(current&&t.turnState==='interrupted')return result('resume','Interrupted','The last saved turn was interrupted.','Check where the work stopped, then continue it.');
+  if(current&&(!t.responseAt||!t.response))return result('review','Status unknown','No recent final response is available.');
   // Quoted examples/code are not evidence about this conversation's outcome.
-  const text=t.response.replace(/```[\s\S]*?```/g,'').replace(/^\s*>.*$/gm,'').replace(/[*`]/g,'');
+  const text=(t.response||'').replace(/```[\s\S]*?```/g,'').replace(/^\s*>.*$/gm,'').replace(/[*`]/g,'');
   const lines=text.split(/\n|(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
   const pendingLines=lines.filter(s=>/^\s*[-*]?\s*\[ \]/.test(s)||/\b(?:still (?:need|needs|pending|blocked|remaining)|not yet (?:done|complete|completed|merged|pushed|deployed)|(?:remaining|next) (?:step|steps)\s*:|blocked (?:by|on)|waiting (?:on|for)|awaiting (?:approval|review)|could(?:n't| not) (?:finish|complete|verify)|needs? (?:your )?approval|(?:tests?|build|verification) (?:failed|fails|pending)|remaining\s*:)/i.test(s)&&!/^\s*(?:no |nothing |if |when )/i.test(s)&&!/\b(?:it|the (?:app|server|browser)) will still need\b/i.test(s));
   const finished=lines.slice(0,1).find(s=>/^(?:done|completed|finished|fixed|resolved|implemented|shipped|merged|deployed|all (?:done|set|requested .*complete))\b/i.test(s)&&!/[?]/.test(s)&&!/^\w+\s+(?:once|when|if)\b/i.test(s));
@@ -28,6 +32,13 @@ const WorkboardFocus = (() => {
   const pending=pendingLines.find(s=>!(/\b(cleanup|clean up|delete|remove)\b.*\b(branch|worktree|checkout)\b/i.test(s)));
   const closed=linked.filter(k=>['done','deferred'].includes(k.status));
   const outside=proof.refs.some(r=>['open','outside'].includes(r.state));
+  // A presently open PR is independent evidence even when its chat is old.
+  // Historical prose and a deliberately retained outside-main commit are not.
+  if(!current&&!proof.refs.some(r=>r.state==='open')){
+   if(closed.length&&!active.length&&!outside&&(!proof.included||pending))return {...historical(),label:'Task closed in ledger',reason:'Related task records are done or deferred. This old chat does not reopen them.',records:closed};
+   if(active.length)return {...result('progress','Current task follow-up','The chat is historical; '+active.map(k=>k.key).join(', ')+' remains open in the selected task ledger.',active[0].checks?.find(c=>!c.done)?.text||'Follow the current task record rather than restarting the old discussion.'),records:active,action:'reconcile'};
+   if(!proof.included||pending)return historical();
+  }
   if(closed.length&&(pending||outside)){
    const newer=closed.some(k=>!k.source?.modified&&Number(k.source?.committedAt)*1000>Date.parse(t.responseAt));
    return {...result('review','Reconcile status',

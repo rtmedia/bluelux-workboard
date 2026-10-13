@@ -28,6 +28,11 @@ class ParserTests(unittest.TestCase):
         tasks = roadmaps.parse_tasks(text)
         self.assertEqual([t['title'] for t in tasks], ['Real next step'])
 
+    def test_task_about_history_is_not_an_archive(self):
+        text='## WB-CURRENT-WORK — Reconcile historical chats — IN_PROGRESS\n- [ ] Verify\n## Archived Completed Work — DONE\n### OLD1 — Old\n- **Status**: TODO\n'
+        tasks=roadmaps.parse_tasks(text)
+        self.assertEqual([(t['key'],t['status']) for t in tasks],[('WB-CURRENT-WORK','active')])
+
     def test_standalone_checklists_and_wrapped_text(self):
         text = '## Release\n- [x] Ship\n## Next\n- [ ] Define freshness\n  and confidence.\n\n- [ ] **P0-1 · Failure**\n  Longer detail here.\n'
         tasks = roadmaps.parse_tasks(text)
@@ -84,6 +89,24 @@ class DiscoveryTests(unittest.TestCase):
             changed=roadmaps.collect([p],[w],git)[2]
             self.assertNotEqual(set(first),set(changed))
             self.assertEqual(next(iter(changed.values()))['projectId'],'github')
+
+    def test_primary_ledger_wins_without_changing_active_branch_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            primary=Path(tmp)/'primary'; branch=Path(tmp)/'active'
+            primary.mkdir(); branch.mkdir()
+            (primary/'TASKS.md').write_text('## REPO-CLEANUP — Cleanup\n- **Status**: DONE\n')
+            branch_text='## REPO-CLEANUP — Cleanup\n- **Status**: IN_PROGRESS\n'
+            (branch/'TASKS.md').write_text(branch_text)
+            def git(root,*args):
+                return ('TASKS.md\0',None) if args[0]=='ls-files' else ('100' if root==str(primary) else '200',None)
+            ws=[{'path':str(p),'repoId':'r','branch':b,'label':label,'files':[]} for p,b,label in [(branch,'feature','active'),(primary,'main','Primary checkout')]]
+            maps,_,docs=roadmaps.collect([{'id':'r','name':'example-project','remote':None}],ws,git)
+            self.assertEqual(maps[0]['sourcePolicy'],'primary')
+            self.assertEqual(maps[0]['tasks'][0]['status'],'done')
+            self.assertEqual(len(maps[0]['alternates']),2)
+            self.assertEqual(maps[0]['statusConflicts'],1)
+            self.assertEqual(docs[maps[0]['sourceId']]['source']['workspace'],str(primary))
+            self.assertEqual((branch/'TASKS.md').read_text(),branch_text)
 
     def test_identical_copies_collapse_and_newest_commit_is_selected(self):
         with tempfile.TemporaryDirectory() as tmp:

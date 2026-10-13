@@ -166,7 +166,7 @@ In Workspaces, **Review cleanup in Codex** prepares a prompt limited to the exac
 
 ## Evidence-based next actions
 
-The sidebar explicitly labels **open tasks**, with a project-level breakdown of in-progress/blocked and planned items. This is not the number of unfinished chats or checkouts. The banner names the selected task-file branch, file commit date and version count. The default still uses the newest local file commit; it does not silently claim that branch is authoritative.
+The sidebar explicitly labels **open tasks**, with a project-level breakdown of in-progress/blocked and planned items. This is not the number of unfinished chats or checkouts. The banner names the selected task-file branch, file commit date and version count. The default uses the primary project ledger when available; alternate versions stay visible, and local content is not automatically verified on GitHub.
 
 An exact task-ID match connects an old chat to its selected project task record. If an old handoff says work remains while the record says Done or Deferred, the discussion moves to **Reconcile status**, outside Resume. The detail shows the dated chat, matched records and exact source path. A file commit date is not a task-completion timestamp. New unanswered requests and interrupted turns retain their own priority; mixed scopes remain explicit. Reconciliation verifies later work against code, delivery and original records before restarting anything. It does not automatically mark the chat completed from a checkbox. Task-linked conflicts are prioritized; older unlinked uncertainty remains searchable in History.
 
@@ -178,3 +178,9 @@ Checkout recommendations are independent of chat completion:
 - **Review cleanup:** current matching delivery evidence identifies temporary leftovers; Codex still checks ownership, ignored files, active use and deletion rules.
 
 Chat-folder links describe historical use, not exclusive ownership. The displayed branch is checked out now, not necessarily the branch used by the old chat. Counts of historical chat links are not active-user counts. Recommendation-specific prompts carry the exact folder and evidence into Codex; they never create stashes, backup branches, bundles or another checkout merely to avoid a decision.
+
+## Current work versus chat history
+
+Resume uses dated conversation activity from the last 30 days, not index-update times or changes in a shared folder. Older unfinished-sounding replies, unanswered requests and interruptions stay in History; this does not declare them complete. A currently open PR still appears under Finish delivery, and an explicitly linked open task stays in the project roadmap. Historical outside-main commits alone do not imply unfinished delivery.
+
+The default task-file version is the primary project ledger, with the newest local version used only when no primary ledger is available. Alternate active-checkout versions remain accessible and status disagreements stay visible. Reconcile stale records in the primary source rather than editing an active session's branch copy.

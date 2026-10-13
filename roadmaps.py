@@ -46,12 +46,14 @@ def parse_tasks(text):
     for n, h in enumerate(headings):
         h['end'] = next((x['start'] for x in headings[n+1:] if x['level'] <= h['level']), len(lines))
         h['directEnd'] = headings[n+1]['start'] if n+1 < len(headings) else len(lines)
-        h['history'] = bool(re.search(r'archiv|historical|review report', h['title'], re.I)) or any(p['history'] and p['start'] < h['start'] < p['end'] for p in headings[:n])
         direct = '\n'.join(lines[i] for i in range(h['start']+1,h['directEnd']) if i not in ignored)
         m = re.search(r'^\s*(?:[-*]\s*)?(?:\*\*)?Status(?:\*\*)?\s*:\s*(.+)', direct, re.M | re.I)
         suffix = re.search(r'(?:—|–| - )\s*(IN_PROGRESS|IN PROGRESS|TODO|DONE|BLOCKED|DEFERRED|CANCELLED|CANCELED)\s*$', h['title'], re.I)
         h['status'] = status(m[1]) if m else status(suffix[1]) if suffix else None
         h['statusText'] = clean(m[1]) if m else suffix[1] if suffix else ''
+        # A task about historical records is still a task; only archive sections
+        # or unstatused history headings suppress their contents.
+        h['history'] = bool(re.match(r'^archiv(?:e|ed)(?:\s|$)', h['title'], re.I) or (not h['status'] and re.search(r'archiv|historical|review report', h['title'], re.I))) or any(p['history'] and p['start'] < h['start'] < p['end'] for p in headings[:n])
     tasks = []
     def add(title, state, line, end, group, evidence, kind='task'):
         body = '\n'.join(lines[line:end])
@@ -209,7 +211,7 @@ def collect(projects, workspaces, git):
     for key in list(FILE_CACHE):
         if key not in active: FILE_CACHE.pop(key,None)
     for d in documents.values():
-        d['sources'].sort(key=lambda s:(s['committedAt'], s['modified'], s['label']=='Primary checkout'), reverse=True)
+        d['sources'].sort(key=lambda s:(s['label']=='Primary checkout', s['committedAt'], s['modified']), reverse=True)
         d['source'] = d['sources'][0]
     roadmaps = []
     summaries = []
@@ -217,6 +219,9 @@ def collect(projects, workspaces, git):
         docs = [d for d in documents.values() if d['projectId']==p['id']]
         docs.sort(key=lambda d:(d['source']['committedAt'], d['source']['modified']), reverse=True)
         task_docs = [d for d in docs if d['kind']=='tasks']
+        # The primary project ledger owns default status; active branch copies
+        # remain browseable without silently replacing reconciled main records.
+        task_docs.sort(key=lambda d:(d['source']['label']=='Primary checkout', d['source']['committedAt'], d['source']['modified']), reverse=True)
         selected = task_docs[0] if task_docs else None
         # Select one newest local version of each plan path. Other versions stay accessible as sources.
         plans = {}
@@ -224,6 +229,7 @@ def collect(projects, workspaces, git):
             if d['kind']=='plan':
                 plans.setdefault(d['relative'].lower(), d['id'])
         roadmaps.append({'projectId':p['id'], 'sourceId':selected['id'] if selected else None,
+                         'sourcePolicy':'primary' if selected and selected['source']['label']=='Primary checkout' else 'newest-local',
                          'tasks':selected['tasks'] if selected else [], 'alternates':[d['id'] for d in task_docs],
                          'planIds':list(plans.values()), 'documentIds':list({d['relative'].lower():d['id'] for d in reversed(docs)}.values()), 'warnings':warnings.get(p['id'], []),
                          'statusConflicts':sum(len(states)>1 for states in ({k:{t['status'] for d in task_docs for t in d['tasks'] if t['key']==k} for k in {t['key'] for d in task_docs for t in d['tasks']}}).values())})
