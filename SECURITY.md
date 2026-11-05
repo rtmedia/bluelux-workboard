@@ -6,7 +6,7 @@ Normal mode reads potentially private local chats, Git metadata and selected pro
 
 ## Report a vulnerability privately
 
-Use [GitHub private vulnerability reporting](https://github.com/rtmedia/bluelux-workboard/security/advisories/new). Include the affected commit, platform, impact and a minimal synthetic reproduction. Do not include real credentials, customer records or conversation logs. Do not open a public issue containing exploitation details or private data. If the private form is unavailable, open an issue requesting a private contact without disclosing the vulnerability.
+Use [GitHub private vulnerability reporting](https://github.com/rtmedia/workboard/security/advisories/new). Include the affected commit, platform, impact and a minimal synthetic reproduction. Do not include real credentials, customer records or conversation logs. Do not open a public issue containing exploitation details or private data. If the private form is unavailable, open an issue requesting a private contact without disclosing the vulnerability.
 
 This early project maintains the current main branch; no older release support window or response-time guarantee is promised. Report first and coordinate disclosure with the maintainers.
 

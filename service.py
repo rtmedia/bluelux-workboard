@@ -4,7 +4,7 @@ import argparse
 import os
 from pathlib import Path
 import plistlib
-import shutil
+import sys
 import subprocess
 
 ROOT = Path(__file__).resolve().parent
@@ -17,7 +17,11 @@ def configuration(root, python):
     return {'Label': LABEL, 'ProgramArguments': [str(python), '-B', str(root/'server.py')],
             'WorkingDirectory': str(root), 'RunAtLoad': True, 'KeepAlive': True,
             'ThrottleInterval': 10, 'ProcessType': 'Interactive',
-            'EnvironmentVariables': {'PATH':'/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin', 'WORKBOARD_SUPERVISED':'1'},
+            'EnvironmentVariables': {
+                'PATH': os.environ.get('PATH', os.defpath),
+                'CODEX_HOME': str(Path(os.environ.get('CODEX_HOME', str(Path.home()/'.codex'))).expanduser().resolve()),
+                **({'GH_CONFIG_DIR': str(Path(os.environ['GH_CONFIG_DIR']).expanduser().resolve())} if os.environ.get('GH_CONFIG_DIR') else {}),
+                'WORKBOARD_SUPERVISED':'1'},
             'StandardOutPath':'/dev/null', 'StandardErrorPath':'/dev/null'}
 
 
@@ -37,7 +41,7 @@ def main():
         print('Automatic startup and restart: '+('enabled' if loaded() else 'not loaded'))
         return
     if action=='enable':
-        python=shutil.which('python3')
+        python=sys.executable
         if not python: raise SystemExit('Python 3 is required.')
         config=configuration(ROOT,python)
         if PLIST.exists():

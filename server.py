@@ -31,7 +31,7 @@ import logging
 ROOT = Path(__file__).resolve().parent
 STARTED = time.monotonic()
 LOGGER = logging.getLogger('workboard')
-CODEX_HOME = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex')))
+CODEX_HOME = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))).expanduser().resolve()
 MAX_TAIL = 1024 * 1024
 NOW = lambda: datetime.now(timezone.utc).isoformat()
 ENV = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0', 'GIT_TERMINAL_PROMPT': '0', 'GH_PROMPT_DISABLED': '1'}
