@@ -5,10 +5,16 @@
   <meta name="theme-color" content="#2458e8"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icon-192.png">
   <meta name="color-scheme" content="light"><title>Workboard · Your projects</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
-  <script src="/focus.js" defer></script><script src="/cleanup.js" defer></script><script src="/app.js" defer></script><script src="/pwa.js" defer></script>
+  <script src="/signals.js" defer></script><script src="/focus.js" defer></script><script src="/cleanup.js" defer></script><script src="/app.js" defer></script><script src="/pwa.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to work</a>
+  <header class="companion-header">
+    <div class="companion-brand"><img src="/favicon.svg" width="24" height="24" alt=""><strong>Workboard</strong><button id="compactRefresh" class="icon-button" aria-label="Refresh workboard">↻</button><button id="compactExpand" class="icon-button" aria-label="Show full dashboard" title="Show full dashboard; widen the window for more space">↗</button></div>
+    <div class="companion-selectors"><select id="compactProject" aria-label="Project scope"><option value="all">All core projects</option></select><select id="compactView" aria-label="Workboard view"><option value="overview">Workboard</option><option value="roadmap">Roadmap</option><option value="plans">Library</option><option value="chats">History</option><option value="workspaces">Workspaces</option><option value="instructions">Instructions</option></select></div>
+    <small id="compactFreshness" role="status">Reading local sources…</small>
+  </header>
+  <div id="privacyCurtain" hidden><h1>Workboard hidden</h1><p>Screen-share mode hides projects, chats and paths.</p><button id="privacyOff" class="button">Reveal Workboard</button></div>
   <aside class="sidebar" aria-label="Projects">
     <a href="/" class="brand"><img class="brand-icon" src="/favicon.svg" width="31" height="31" alt=""> Workboard<span class="local-label">LOCAL</span></a>
     <div class="sidebar-section">CORE PROJECTS</div>
@@ -22,8 +28,9 @@
     <div class="controls"><nav class="tabs" aria-label="Views"><button data-view="overview" class="selected">Workboard</button><button data-view="roadmap">Roadmap</button><button data-view="plans">Library</button><button data-view="instructions">Instructions</button><button data-view="chats">History</button><button data-view="workspaces">Workspaces</button></nav><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Find an item, document, or chat" aria-label="Find an item, document, or chat"></label></div>
     <div class="filterbar"><div class="legend"><span class="badge blue">In progress</span><span class="badge amber">Up next</span><span class="badge green">Done</span><span class="badge gray">Deferred</span></div><label class="archive-toggle"><input id="archives" type="checkbox">Include archived chats</label></div>
     <section id="content" aria-label="Work"><div class="loading"><span class="spinner"></span><h2>Connecting the dots</h2><p>Reading your local chats, projects, and Git checkouts.</p></div></section>
-    <footer id="freshness">Local data stays on this computer.</footer>
+    <footer id="freshness">Local data stays on this computer.</footer><p class="creator-credit">© 2026 Wisam Daoud &amp; BlueLux · MIT</p>
   </main>
+  <div id="handoffStatus" role="status" aria-live="polite"></div>
   <dialog id="detail"><div class="drawer-top"><span id="detailType" class="eyebrow">DETAILS</span><button id="closeDetail" class="icon-button" aria-label="Close details">×</button></div><div id="detailBody"></div></dialog>
 </body>
 </html>

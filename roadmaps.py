@@ -6,7 +6,7 @@ import re
 LIMIT = 2 * 1024 * 1024
 FILE_CACHE = {}
 SKIP = {'.git', 'node_modules', 'work', 'vendor', '.local', '.gstack', 'archive', 'archives', 'dist', 'build', 'qa-artifacts', 'attached_assets', 'coverage', 'logs', '.runtime', '.venv', 'venv', 'site-packages'}
-CORE = {'example-project': 'Example Project', 'example-site': 'Example Site', 'example-service': 'Example Service', 'example_importer': 'Example Importer', 'example-device': 'Example Device', 'example_device': 'Example Device', 'bluelux-workboard':'Workboard', 'workboard':'Workboard'}
+import configuration
 
 
 def clean(value):
@@ -151,13 +151,10 @@ def read_safe(root, relative):
     return path.read_text(encoding='utf-8', errors='replace')
 
 
-def collect(projects, workspaces, git):
+def collect(projects, workspaces, git, aliases=None):
     documents = {}
     warnings = {}
-    for p in projects:
-        slug = (p.get('remote') or '').rstrip('/').split('/')[-1].lower()
-        p['core'] = slug in CORE or p['name'].lower() in CORE
-        p['displayName'] = CORE.get(slug, CORE.get(p['name'].lower(), p['name']))
+    configuration.apply(projects, aliases)
     for w in workspaces:
         root = w['path']
         raw, error = git(root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard')

@@ -98,11 +98,21 @@ class Monitor:
                 result['limits'].append('Remote branch inventory limited to the first 100.')
             if isinstance(prs,list) and len(prs) >= 100:
                 result['limits'].append('PR inventory limited to the latest 100; explicitly cited PRs are also checked (up to 20 extra).')
+        result['checks'] = {'state':'unknown','label':'Default-branch checks unknown'}
         result['deployment'] = {'state': 'unknown', 'label': 'Render deployment not reported through GitHub'}
         if result['sha']:
             with ThreadPoolExecutor(max_workers=2) as pool:
                 checks, statuses = list(pool.map(lambda path: self.api(slug,path), [
                     '/commits/'+result['sha']+'/check-runs?per_page=100', '/commits/'+result['sha']+'/status']))
+            runs = (checks or {}).get('check_runs', [])
+            statuses_list = (statuses or {}).get('statuses', [])
+            all_checks = runs + statuses_list
+            failed = any(c.get('conclusion') in ('failure', 'timed_out', 'cancelled', 'action_required') or c.get('state') in ('failure', 'error') for c in all_checks)
+            pending = any(c.get('status') in ('queued', 'in_progress') or c.get('state') == 'pending' for c in all_checks)
+            complete = isinstance(checks, dict) and isinstance(statuses, dict) and checks.get('total_count', len(runs)) <= len(runs) and len(statuses_list) < 100
+            passed = bool(all_checks) and complete and all(c.get('conclusion') in ('success', 'neutral', 'skipped') or c.get('state') == 'success' for c in all_checks)
+            state = 'failed' if failed else 'pending' if pending else 'success' if passed else 'unknown'
+            result['checks'] = {'state':state, 'label':'Default-branch checks ' + state, 'count':len(all_checks), 'complete':complete}
             render = [c for c in (checks or {}).get('check_runs',[]) if 'render' in (c.get('name','')+' '+c.get('app',{}).get('slug','')).lower()]
             render += [c for c in (statuses or {}).get('statuses',[]) if 'render' in c.get('context','').lower()]
             if render:
@@ -145,10 +155,12 @@ class Monitor:
                'checkedAt': NOW(), 'units': [], 'pullRequests': {}, 'commits': {}, 'error': None,
                'limits': [], 'deployment': {'state':'unknown','label':'Render deployment not checked'}, 'stashes': len(repo.get('stashes', []))}
         remote = self.remote(repo,force) if repo.get('remote') else {'branch':None,'sha':None,'branches':None,'prs':[], 'error':'No GitHub origin configured.', 'limits':[], 'checkedAt':NOW()}
+        out['checks'] = remote.get('checks', {'state':'unknown','label':'Default-branch checks unknown'})
         out['deployment'] = remote.get('deployment',out['deployment'])
         out.update(defaultBranch=remote['branch'], defaultCommit=remote['sha'], checkedAt=remote['checkedAt'], error=remote['error'], limits=list(remote['limits']))
         slug = (repo.get('remote') or '').removeprefix('https://github.com/')
         prs = {str(p['number']): p for p in remote['prs']}
+        out['prInventory'] = [{'url':p.get('html_url'), 'title':p.get('title'), 'branch':p.get('head',{}).get('ref'), 'state':'merged' if p.get('merged_at') else p.get('state','unknown')} for p in remote['prs']]
         wanted = list(dict.fromkeys(url.rsplit('/',1)[-1] for t in threads for url in t.get('prs',[]) if url.startswith((repo.get('remote') or 'NO_REMOTE')+'/pull/')))
         missing = [n for n in wanted if n not in prs]
         if len(missing)>20:
@@ -174,7 +186,7 @@ class Monitor:
                     return 'included', p.get('html_url')
             return state, None
         for number,p in prs.items():
-            if number not in wanted: continue
+            if number not in wanted and p.get('state') != 'open': continue
             merged = bool(p.get('merged_at'))
             state = 'included' if merged and p.get('base',{}).get('ref') == remote['branch'] and self.contains(repo,p.get('merge_commit_sha'),remote['sha']) == 'included' else 'open' if p.get('state') == 'open' else 'closed' if not merged else 'unknown'
             out['pullRequests'][p['html_url']] = {'state':state,'branch':p.get('head',{}).get('ref'), 'sha':p.get('head',{}).get('sha'), 'mergedAt':p.get('merged_at'), 'title':p.get('title'), 'url':p['html_url']}

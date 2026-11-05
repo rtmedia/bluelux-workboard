@@ -1,6 +1,8 @@
 # Workboard
 
-Product intent is defined in [CHARTER.md](CHARTER.md). The [source-of-truth plan](TASKS.md#wb-source-truth--view-only-workboard-and-source-reconciliation--done) replaces manual tracking with contextual Codex prompt handoffs, including Reconcile. The view-only controls and prompt handoffs are now implemented.
+Created by **Wisam Daoud and BlueLux**. Copyright © 2026 Wisam Daoud and BlueLux. Licensed under the [MIT License](LICENSE).
+
+Product intent is defined in [CHARTER.md](CHARTER.md). The [source-of-truth plan](TASKS.md#wb-source-truth--view-only-workboard-and-source-reconciliation--done) replaces manual tracking with contextual Codex prompt handoffs, including Reconcile. The view-only controls and prompt handoffs are now implemented. [TASKS.md](TASKS.md) is the canonical ledger and contains the active [DOC-RECONCILE plan](TASKS.md#bounded-closeout-plan-for-doc-reconcile); that cross-project review remains open. This README covers usage and operations, [AGENTS.md](AGENTS.md) defines agent behavior, and [tasks/lessons.md](tasks/lessons.md) preserves corrections and superseded decisions.
 
 A local dashboard across Codex chats, Git repositories, worktrees, stashes, and GitHub pull requests. No npm/pip packages or cloud deployment.
 
@@ -18,6 +20,14 @@ For a foreground server that stops with Ctrl-C, run `python3 server.py`. Port 43
 - Workspaces shows every discovered registered checkout, its current branch, file changes, historical chat associations, recommended next step, cached upstream comparison, and repository stashes.
 - **Check GitHub** reads current default-branch and pull-request data through the existing `gh` login. It does not fetch or change local branches.
 - The browser refreshes local status every 30 seconds while visible. Refresh is also available manually.
+
+## Compact companion
+
+At window widths of 600 px or less, Workboard switches to a companion layout designed for a 320–420 px strip. A sticky header holds project scope, the view selector, refresh and the last local scan time. Recent discussions and delivery steps appear first, followed by expandable project rows. Source evidence, reconciliation, cleanup and recent completions remain available in disclosures. Search filters the current scope; selecting a project or view changes presentation only.
+
+Use **↗ Show full dashboard** to show the full controls in the same window and **↙ Return to companion** to return. Widening past 600 px automatically restores the existing expanded layout. All six views remain accessible through the view selector. Details fill a narrow window, with a sticky close control. Existing chat handoffs still copy a draft and open Codex without sending it.
+
+Companion chat ordering remains stable within each group for the open page; refresh preserves expanded disclosures and scroll position. Source changes can still move an item between groups. A scan older than two minutes is labeled stale; unavailable-server errors remain visible. This is not an always-on-top window manager or an independent task store.
 
 ## Status meanings
 
@@ -41,7 +51,9 @@ The server binds only to 127.0.0.1, validates Host and Origin, disables cross-or
 
 ## Verification
 
-`python3 -m unittest -v test_server.py`
+`python3 -m unittest -q`
+
+`node test_focus.cjs`, `node test_delivery_ui.cjs`, `node test_cleanup.cjs`, `node test_pwa.cjs`
 
 `node --check static/app.js`
 
@@ -61,7 +73,7 @@ Workboard opens on **Example Project, Example Site, Example Service, Example Imp
 
 The adapter reads up to 120 relevant Markdown/configuration files per known checkout, at most 2 MB per file, excluding generated/ignored/archive folders. It groups identical document copies and deduplicates repeated task IDs. Explicit task status wins over checklist progress; a shipped release can still have unfinished verification. Supporting plan checklists remain within those documents instead of inflating the main TASKS count. Unstructured narrative is shown as reference content, not invented task status.
 
-The default task file is the version with the **newest local Git commit for that file**. This is a transparent selection rule, not proof that the file is canonical, current on GitHub, or fully reconciled. Source branch, date and local edits are shown; choose another TASKS version from the Roadmap selector. That selection persists through refresh in the open page. Recent conversations provide context but never silently mark tasks complete. Cloud-only plans, arbitrary external folders, and plans never saved to matching local Markdown files are not covered.
+The default task file is the **primary project ledger when available**, with the newest local file commit used only as a fallback. This selection rule is not proof that local content is current on GitHub or fully reconciled. Source branch, date and local edits are shown; choose another TASKS version from the Roadmap selector. That selection persists through refresh in the open page. Recent conversations provide context but never silently mark tasks complete. Cloud-only plans, arbitrary external folders, and plans never saved to matching local Markdown files are not covered.
 
 New source module: `roadmaps.py`. Verification: `python3 -m unittest -q` and `node --check static/app.js`.
 
@@ -168,7 +180,7 @@ In Workspaces, **Review cleanup in Codex** prepares a prompt limited to the exac
 
 The sidebar explicitly labels **open tasks**, with a project-level breakdown of in-progress/blocked and planned items. This is not the number of unfinished chats or checkouts. The banner names the selected task-file branch, file commit date and version count. The default uses the primary project ledger when available; alternate versions stay visible, and local content is not automatically verified on GitHub.
 
-An exact task-ID match connects an old chat to its selected project task record. If an old handoff says work remains while the record says Done or Deferred, the discussion moves to **Reconcile status**, outside Resume. The detail shows the dated chat, matched records and exact source path. A file commit date is not a task-completion timestamp. New unanswered requests and interrupted turns retain their own priority; mixed scopes remain explicit. Reconciliation verifies later work against code, delivery and original records before restarting anything. It does not automatically mark the chat completed from a checkbox. Task-linked conflicts are prioritized; older unlinked uncertainty remains searchable in History.
+An exact task-ID match connects a chat to its selected project task record. A recent handoff that conflicts with a Done or Deferred record moves to **Reconcile status**, outside Resume. Historical chats with closed records remain in History; an old chat linked to an open task can appear as **Current task follow-up**, with reconciliation based on that task. The detail shows the dated chat, matched records and exact source path. A file commit date is not a task-completion timestamp. Recent unanswered requests and interrupted turns retain their own priority; mixed scopes remain explicit. Reconciliation verifies later work against code, delivery and original records before restarting anything. It does not automatically mark the chat completed from a checkbox. Task-linked conflicts are prioritized; older unlinked uncertainty remains searchable in History.
 
 Checkout recommendations are independent of chat completion:
 
@@ -184,3 +196,27 @@ Chat-folder links describe historical use, not exclusive ownership. The displaye
 Resume uses dated conversation activity from the last 30 days, not index-update times or changes in a shared folder. Older unfinished-sounding replies, unanswered requests and interruptions stay in History; this does not declare them complete. A currently open PR still appears under Finish delivery, and an explicitly linked open task stays in the project roadmap. Historical outside-main commits alone do not imply unfinished delivery.
 
 The default task-file version is the primary project ledger, with the newest local version used only when no primary ledger is available. Alternate active-checkout versions remain accessible and status disagreements stay visible. Reconcile stale records in the primary source rather than editing an active session's branch copy.
+
+## Always-open signals
+
+The companion adds a compact Git/session strip and a toolbar for **Jump (⌘K / Ctrl+K)**, **Pause**, **Hide screen**, and **Changes**. The expanded overview retains these controls. Git details include changed folders, local branches, cached upstream ahead/behind, observed open PRs, default-branch checks, guarded cleanup candidates and checkpoint-review cues. Missing GitHub access and inventory limits remain visible. PR-head checks, arbitrary GitHub issues and deployment providers without supported evidence are not covered.
+
+**Needs you** promotes recent resume items with explicit requests for your approval/input; it is conservative text matching, not a new task status. Session details show saved activity, estimated context use, compactions seen in the bounded log tail, accumulated session tokens and reported allowance/reset windows. Recent activity is not proof that a process is running. Context is last reported tokens divided by the reported model window, not lifetime consumption or a measure of reasoning quality. Allowance snapshots expire after ten minutes or the reported reset; account identity remains unverified and snapshots are never added across sessions. Cost and unsupported provider usage stay unknown. A 75% context estimate offers a checkpoint-review cue, not automatic rollover.
+
+**Prepare checkpoint & handoff** produces a draft for the existing chat to reconcile its ledger, verification, remaining scope and next step. Review the result before opening a new chat yourself. Workboard sends nothing and never archives sessions. Potential overlap means multiple recently active chats referenced the same exact checkout; it does not establish file ownership.
+
+**Changes** records up to 50 notices in this page's memory: saved replies, changed file-state inventories, PR transitions and newly observed failing default-branch/deployment checks. The first scan is a baseline; reloading clears notices. File content changes that leave the same Git status/path inventory are not detected. No OS notifications or LLM calls are involved. Pause stops this window's polling and display updates, including in-flight responses; other windows may still scan. Hide screen hides the entire dashboard until revealed; it is a visual privacy curtain, not access control, and reloading reveals the dashboard again.
+
+Local scans are requested every **30 seconds while visible** and on manual refresh. In-progress scans are polled approximately every **1.8 seconds**. GitHub evidence uses a **five-minute cache**; the explicit delivery check bypasses it. Usage is only as fresh as the latest saved provider event. No second agent process is started to acquire telemetry.
+
+## Configuration and sharing
+
+Without configuration, all discovered projects appear in the main scope. Copy `workboard.example.json` to the Git-ignored `workboard.local.json`, then replace its `projects` mapping with repository slugs and display names to choose your main projects. Keys match the lower-case final repository name in the origin URL, falling back to the local project name. Other discovered projects remain accessible; this is a presentation filter, not a privacy boundary. Restart the server after changing configuration. `--config /path/to/config.json` selects another file; invalid configuration fails explicitly. Existing personal project aliases were moved into the ignored local file.
+
+For a shareable preview, run `python3 server.py --demo --port 43128` and open `http://127.0.0.1:43128`. Synthetic demo mode reads no personal sources and disables GitHub/Finder actions. Normal mode still uses your local Codex index and existing optional `gh` login. No dependencies were added. See [CONTRIBUTING.md](CONTRIBUTING.md) for verification and adapter boundaries. Public release and history/privacy review remain explicit gates in [TASKS.md](TASKS.md); this change does not publish the repository. The existing macOS service retains its legacy `com.bluelux.workboard` identifier for compatibility.
+
+Design inspiration: [Omarchy](https://github.com/omacom/omarchy) for consistent workspace controls; [CodexBar](https://github.com/steipete/CodexBar) for usage windows, reset times and source freshness; [Lazygit](https://github.com/jesseduffield/lazygit) for compact summary-to-detail navigation; [btop](https://github.com/aristocratos/btop) for pauseable monitoring. These informed interaction patterns; no source code or dependencies were copied.
+
+The visual companion uses amber for input/changed work, blue for activity/context, violet for branches and teal for allowance/closeout. Dashed circles and hatched bars mean unknown or stale; labels remain available without relying on color. Count tiles are counts, not completion percentages. Context rings and usage bars use recorded measurements. Click a card for the full next step, evidence and handoff controls.
+
+**Direct chat handoff:** Continue and chat-specific Reconcile copy the scoped prompt during the click, then navigate the same window to `codex://threads/<id>`. No preview page or new tab opens on success. Paste and send in Codex yourself. A prompt preview appears only if copying or opening fails; project-wide reconciliation still asks you to choose a chat. Browser/OS external-app approval may still appear.

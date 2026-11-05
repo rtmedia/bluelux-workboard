@@ -12,6 +12,29 @@ class DeliveryTests(unittest.TestCase):
         monitor.remote=Mock(return_value=remote)
         return monitor,repo,snapshot,remote
 
+    def test_uncited_open_pr_is_visible_without_claiming_delivery(self):
+        m,r,s,remote=self.setup_scan()
+        remote['prs']=[{'number':2,'state':'open','html_url':'https://github.com/a/b/pull/2','head':{'ref':'fix','sha':'head'},'title':'Uncited PR'}]
+        m.contains=Mock(return_value='outside')
+        out=m.inspect(r,s)
+        self.assertEqual(out['pullRequests']['https://github.com/a/b/pull/2']['state'],'open')
+        self.assertEqual(out['prInventory'][0]['state'],'open')
+
+    def test_empty_or_missing_checks_never_mean_pass(self):
+        m=delivery.Monitor(Mock(),Mock())
+        def api(slug,path):
+            if path=='':return {'default_branch':'main'}
+            if path=='/commits/main':return {'sha':'head'}
+            if path.endswith('/status'):return {'statuses':[]}
+            if 'check-runs' in path:return {'check_runs':[],'total_count':0}
+            return []
+        m.api=api
+        self.assertEqual(m.remote({'remote':'https://github.com/a/b'},True)['checks']['state'],'unknown')
+        def failing(slug,path):
+            return {'check_runs':[{'conclusion':'failure'}],'total_count':1} if 'check-runs' in path else api(slug,path)
+        m.api=failing
+        self.assertEqual(m.remote({'remote':'https://github.com/a/b'},True)['checks']['state'],'failed')
+
     def test_only_explicit_commit_identifiers_are_extracted(self):
         self.assertEqual(delivery.commit_refs('TASK abcdef0 and number 1234567'),[])
         self.assertEqual(delivery.commit_refs('Commit: `abcdef0`')[0]['sha'],'abcdef0')

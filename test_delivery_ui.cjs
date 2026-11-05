@@ -1,8 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const elements=new Map();
-function element(){return {listeners:{},closest(){return null},getBoundingClientRect(){return {left:500,right:1000,top:0,bottom:800}},innerHTML:'',textContent:'',dataset:{},classList:{toggle(){}},setAttribute(){},addEventListener(type,fn){(this.listeners[type]??=[]).push(fn)},append(){},focus(){},select(){},showModal(){this.open=true},close(){this.open=false}};}
+function element(){return {style:{},remove(){},listeners:{},closest(){return null},getBoundingClientRect(){return {left:500,right:1000,top:0,bottom:800}},innerHTML:'',textContent:'',dataset:{},classList:{toggle(){}},setAttribute(){},addEventListener(type,fn){(this.listeners[type]??=[]).push(fn)},append(){},focus(){},select(){},showModal(){this.open=true},close(){this.open=false}};}
 const document={querySelector:s=>{if(!elements.has(s))elements.set(s,element());return elements.get(s)},querySelectorAll:()=>[],createElement:element,body:element(),addEventListener(){}};
-const context=vm.createContext({document,window:{addEventListener(){}},fetch:()=>new Promise(()=>{}),setInterval(){},setTimeout(){},clearTimeout(){},URLSearchParams,console});
+const context=vm.createContext({document,window:{addEventListener(){},matchMedia(){return {matches:false,addEventListener(){}}}},fetch:()=>new Promise(()=>{}),setInterval(){},setTimeout(){},clearTimeout(){},URLSearchParams,console});
+vm.runInContext(fs.readFileSync('static/signals.js','utf8'),context);
 vm.runInContext(fs.readFileSync('static/focus.js','utf8'),context);
 vm.runInContext(fs.readFileSync('static/cleanup.js','utf8'),context);
 vm.runInContext(fs.readFileSync('static/app.js','utf8'),context);
@@ -145,3 +146,70 @@ assert(!elements.get('#detailBody').innerHTML.includes('>Continue ↗'));
 vm.runInContext(`state.data.threads[0].response='DESIGN3 still needs QA';state.data.threads[0].responseAt=new Date().toISOString();state.data.threads[0].prs=[];showChat('old');`,context);
 assert(elements.get('#detailBody').innerHTML.includes('Reconcile status'));
 console.log('Historical UI checks pass: discoverable history, no Continue for old prose, recent conflicts still reconciled.');
+
+// Compact mode keeps current evidence, scoped work and expanded navigation intact.
+vm.runInContext(`state.data.roadmaps.forEach(r=>r.warnings=[]);compactViewport.matches=true;state.project='r';state.view='overview';state.boardFilter='all';state.query='';render();`,context);
+html=elements.get('#content').innerHTML;
+assert(html.includes('companion-board'));assert(html.includes('Projects'));
+assert(!html.includes('Other private task'));assert(!html.includes('project-source-summary'));
+assert.equal(elements.get('#compactProject').value,'r');
+vm.runInContext(`state.fullView=true;render();`,context);
+assert(!elements.get('#content').innerHTML.includes('companion-board'));
+assert(elements.get('#content').innerHTML.includes('Workboard filters'));
+vm.runInContext(`state.fullView=false;state.view='roadmap';render();`,context);
+assert(!elements.get('#content').innerHTML.includes('companion-board'));
+assert(elements.get('#content').innerHTML.includes('Task status'));
+vm.runInContext(`compactViewport.matches=false;state.view='overview';render();`,context);
+assert(!elements.get('#content').innerHTML.includes('companion-board'));
+assert(elements.get('#content').innerHTML.includes('Workboard filters'));
+console.log('Companion checks pass: scoped overview, source-backed tasks, roadmap access and expanded-view restoration.');
+
+vm.runInContext(`
+state.project='all';state.query='';state.view='overview';state.boardFilter='all';
+state.data.threads=[{id:'signal',title:'Approval <needed>',cwd:'/repo',projectIds:['r'],workspacePaths:[],requestAt:new Date(Date.now()-120000).toISOString(),responseAt:new Date().toISOString(),response:'Remaining: this needs your approval.',lastMessageAt:new Date().toISOString(),turnState:'finished',telemetry:{observedAt:new Date().toISOString(),lastTokens:800,contextWindow:1000,totalTokens:9999,windows:[]}}];
+compactViewport.matches=true;state.fullView=false;render();`,context);
+html=elements.get('#content').innerHTML;
+assert(html.includes('Needs you'));assert(html.includes('Approval &lt;needed&gt;'));
+assert(html.includes('data-signal-git'));assert(html.includes('data-pause'));
+vm.runInContext("showSessions();",context);
+html=elements.get('#detailBody').innerHTML;
+assert(html.includes('80% context estimate'));assert(html.includes('Cost unknown'));
+assert(html.includes('Allowance and resets unknown'));
+vm.runInContext("showHandoff('signal');",context);
+assert(elements.get('#workflowPrompt').value.includes('Do not commit, push, deploy, delete, archive or start another session'));
+assert(elements.get('#detailBody').innerHTML.includes('readonly'));
+vm.runInContext("state.paused=true;render();",context);
+assert(elements.get('#content').innerHTML.includes('Updates paused in this window'));
+console.log('Companion signals UI passes: attention, escaping, unknown allowance/cost, estimated context and draft-only handoff.');
+const demo=JSON.parse(require('node:child_process').execFileSync('python3',['-c','import demo,json;print(json.dumps(demo.snapshot()[0]))'],{encoding:'utf8'}));
+context.demoFixture=demo;
+vm.runInContext("state.data=demoFixture;state.delivery={repositories:[]};state.project='all';state.query='';state.paused=false;for(const view of ['overview','roadmap','plans','chats','workspaces','instructions']){state.view=view;render()}",context);
+assert(elements.get('#content').innerHTML.includes('Global instructions'));
+console.log('Synthetic demo renders all six views without host data.');
+vm.runInContext("state.view='overview';state.fullView=false;compactViewport.matches=true;render();",context);
+html=elements.get('#content').innerHTML;
+assert(html.includes('visual-metrics'));assert(html.includes('visual-chat'));assert(html.includes('visual-ring'));
+assert(html.includes('Context used: 78 percent'));assert(html.includes('Allowance left: 72 percent'));
+assert(html.includes('GitHub coverage incomplete; 0 open PRs observed'));assert(html.includes('Context estimate: unknown'));
+assert(html.includes('aria-label="Hide screen"'));assert(!html.includes('Remaining: this needs your approval before implementation.'));
+assert(vm.runInContext("visualBar(null,'Missing')",context).includes('Missing: unknown'));
+assert(vm.runInContext("visualBar(0,'Zero')",context).includes('Zero: 0 percent'));
+assert(vm.runInContext("visualBar(50,'Old','blue',true)",context).includes('stale snapshot'));
+console.log('Visual companion checks pass: measured bars, unknown versus zero, stale labels, compact cards and accessible icon controls.');
+
+(async()=>{
+ const copied=[];context.navigator={clipboard:{writeText:async text=>copied.push(text)}};
+ context.window.location={href:'unchanged'};document.execCommand=()=>false;
+ vm.runInContext("state.detail='original';",context);
+ await vm.runInContext("directWorkflowHandoff('continue','demo-approval')",context);
+ assert.equal(context.window.location.href,'codex://threads/demo-approval');
+ assert.equal(vm.runInContext('state.detail',context),'original');
+ assert(copied[0].includes('Pick up the work in this exact chat'));
+ context.window.location.href='unchanged';context.navigator.clipboard.writeText=async()=>{throw Error('denied')};
+ await vm.runInContext("directWorkflowHandoff('continue','demo-approval')",context);
+ assert.equal(context.window.location.href,'unchanged');
+ assert.equal(vm.runInContext('state.detail',context),'workflow-prompt');
+ assert(elements.get('#workflowStatus').textContent.includes('Clipboard unavailable'));
+ assert(elements.get('#workflowPrompt').value.includes('demo-approval'));
+ console.log('Direct handoff passes: copy before same-window deep link, no success preview, and no navigation after clipboard denial.');
+})().catch(e=>{console.error(e);process.exitCode=1});

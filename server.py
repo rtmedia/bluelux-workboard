@@ -21,6 +21,8 @@ import roadmaps
 import instructions
 import reliability
 import delivery
+import telemetry
+import configuration
 import logging
 
 ROOT = Path(__file__).resolve().parent
@@ -80,11 +82,13 @@ def local_path(value):
 def parse_events(lines):
     """Read only public message/event types, never reasoning or command output."""
     out = {'request': '', 'response': '', 'workdirs': [], 'turnState': 'unknown',
-           'lastEventAt': None, 'lastMessageAt': None, 'requestAt': None, 'responseAt': None, 'prs': [], 'commits': []}
+           'lastEventAt': None, 'lastMessageAt': None, 'requestAt': None, 'responseAt': None, 'prs': [], 'commits': [], 'telemetry': None, 'compactionsObserved': 0, 'lastActivityAt': None, 'model': None}
     for line in lines:
         try:
             d = json.loads(line)
         except (ValueError, TypeError):
+            continue
+        if not isinstance(d, dict):
             continue
         p = d.get('payload', {})
         if not isinstance(p, dict):
@@ -92,7 +96,15 @@ def parse_events(lines):
         typ = p.get('type')
         kind = d.get('type')
         stamp = d.get('timestamp')
+        if kind == 'compacted':
+            out['compactionsObserved'] += 1
+        if kind == 'turn_context' and isinstance(p.get('model'), str):
+            out['model'] = plain(p['model'], 100)
         if kind == 'event_msg':
+            if typ == 'token_count':
+                out['telemetry'] = telemetry.snapshot(p, stamp)
+            if typ in ('token_count', 'task_started', 'task_complete', 'turn_aborted', 'agent_message', 'item_completed'):
+                out['lastActivityAt'] = stamp
             if typ == 'user_message':
                 out['request'] = request_text(p.get('message', ''))
                 out['lastMessageAt'] = stamp
@@ -310,6 +322,8 @@ def historical_project(row, repos):
 
 class Board:
     def __init__(self):
+        self.demo = False
+        self.aliases = None
         self.reader = CodexReader()
         self.delivery = delivery.Monitor(run, git)
         self.lock = threading.Lock()
@@ -334,6 +348,11 @@ class Board:
     def _refresh(self):
         self.scan_started = time.monotonic()
         try:
+            if self.demo:
+                import demo
+                self.snapshot, self.delivery.data = demo.snapshot()
+                self.error = None
+                return
             rows, saved, schema = self.reader.index()
             contexts = {}
             # Archived chats remain searchable; recent excerpts are loaded on demand for them.
@@ -404,7 +423,8 @@ class Board:
                      'lastMessageAt': ctx.get('lastMessageAt'), 'historyLimited': ctx.get('historyLimited', False),
                      'requestAt': ctx.get('requestAt'), 'responseAt': ctx.get('responseAt'),
                      'contextError': ctx.get('contextError'), 'observedPaths': observed, 'prs': ctx.get('prs', []),
-                     'commits': ctx.get('commits', []),
+                     'commits': ctx.get('commits', []), 'telemetry': ctx.get('telemetry'),
+                     'compactionsObserved': ctx.get('compactionsObserved', 0), 'lastActivityAt': ctx.get('lastActivityAt'), 'model': ctx.get('model'),
                      'workspacePaths': [], 'assignedFolderExists': Path(row['cwd']).is_dir() if local_path(row['cwd']) else None,
                      'historicalProjectLink': bool(historical), 'link': 'codex://threads/' + row['id']}
                 t['workspacePaths'] = linked_workspaces([row['cwd']] + observed, workspaces, by_path)
@@ -414,7 +434,7 @@ class Board:
                 threads.append(t)
             for repo in repos.values():
                 repo.pop('checkouts', None)
-            roadmap_data, document_summaries, documents = roadmaps.collect(list(projects.values()), workspaces, git)
+            roadmap_data, document_summaries, documents = roadmaps.collect(list(projects.values()), workspaces, git, self.aliases)
             self.rows = {r['id']: r for r in rows}
             snapshot = {'checkedAt': NOW(), 'threads': threads, 'projects': list(projects.values()),
                         'repositories': list(repos.values()), 'workspaces': workspaces,
@@ -442,6 +462,8 @@ class Board:
                 'delivery': self.delivery.state()}
 
     def detail(self, thread_id):
+        if self.demo:
+            return next((t for t in self.snapshot['threads'] if t['id'] == thread_id), None)
         row = self.rows.get(thread_id)
         if not row:
             return None
@@ -450,6 +472,8 @@ class Board:
                 'request': context['request'] or request_text(row.get('first_user_message') or row.get('preview', ''))}
 
     def reveal_workspace(self, path):
+        if self.demo:
+            return {'error': 'Synthetic demo folders cannot be revealed.'}
         known = {w['path'] for w in (self.snapshot or {}).get('workspaces', [])}
         if not isinstance(path, str) or path not in known:
             return {'error': 'Choose an indexed workspace folder.'}
@@ -585,14 +609,16 @@ class Handler(BaseHTTPRequestHandler):
             return
         url = urlsplit(self.path)
         query = parse_qs(url.query)
+        if BOARD.demo and url.path in ('/api/instructions', '/api/github', '/api/task-github'):
+            return self.send(200, {'error': 'Unavailable in synthetic demo; no personal sources are read.'})
         if url.path == '/api/instructions':
             if url.query:
                 return self.send(400, {'error': 'This endpoint accepts no file paths or query parameters.'})
             return self.send(200, instructions.snapshot(CODEX_HOME, ROOT))
         if url.path == '/api/health':
-            return self.send(200, reliability.health(BOARD, STARTED, ROOT))
+            return self.send(200, reliability.health(BOARD, STARTED, Path('/demo/workboard') if BOARD.demo else ROOT))
         if url.path == '/api/ready':
-            report = reliability.health(BOARD, STARTED, ROOT)
+            report = reliability.health(BOARD, STARTED, Path('/demo/workboard') if BOARD.demo else ROOT)
             return self.send(200 if report['status']=='ready' else 503, report)
         if url.path == '/api/documents/search':
             text = query.get('q',[''])[0][:200].strip().lower()
@@ -630,7 +656,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self.send(502, {'error': 'GitHub details are unavailable. Local data is still available.'})
         assets = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'application/javascript'),
-                  '/focus.js': ('focus.js', 'application/javascript'),
+                  '/focus.js': ('focus.js', 'application/javascript'), '/signals.js': ('signals.js', 'application/javascript'),
                   '/cleanup.js': ('cleanup.js', 'application/javascript'),
                   '/style.css': ('style.css', 'text/css'), '/favicon.svg': ('favicon.svg', 'image/svg+xml'),
                   '/manifest.webmanifest': ('manifest.webmanifest', 'application/manifest+json'),
@@ -649,7 +675,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/api/delivery':
             if self.headers.get('X-Workboard-Action') != 'delivery':
                 return self.send(403, {'error': 'Use the delivery check button.'})
-            BOARD.delivery.refresh(BOARD.snapshot, force=True)
+            if not BOARD.demo:
+                BOARD.delivery.refresh(BOARD.snapshot, force=True)
             return self.send(202, {'refreshing': True})
         if self.path == '/api/reveal':
             if self.headers.get('X-Workboard-Action')!='reveal' or self.headers.get('Content-Type')!='application/json':
@@ -674,7 +701,12 @@ def main():
     parser.add_argument('--port', type=int, default=43127)
     parser.add_argument('--open', action='store_true')
     parser.add_argument('--check', action='store_true', help='Run one local inventory and print counts, without serving')
+    parser.add_argument('--demo', action='store_true', help='Synthetic data only; no Codex, Git or GitHub reads')
+    parser.add_argument('--config', type=Path, default=ROOT/'workboard.local.json', help='Optional project aliases/scope JSON')
     args = parser.parse_args()
+    BOARD.demo = args.demo
+    if not args.demo:
+        BOARD.aliases = configuration.load(args.config)
     if args.check:
         BOARD._refresh()
         if BOARD.error:
@@ -683,7 +715,8 @@ def main():
         print(json.dumps({'chats': len(s['threads']), 'projects': len(s['projects']), 'workspaces': len(s['workspaces']), 'coverage': s['coverage']}))
         return
     reliability.configure_logging(ROOT)
-    (ROOT / '.runtime' / 'server.pid').write_text(str(os.getpid()))
+    if args.port == 43127 and not args.demo:
+        (ROOT / '.runtime' / 'server.pid').write_text(str(os.getpid()))
     server = LocalServer(('127.0.0.1', args.port), Handler)
     BOARD.refresh()
     url = 'http://127.0.0.1:' + str(args.port)
