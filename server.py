@@ -3,6 +3,9 @@
 from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
+import io
+import stat as file_stat
 from datetime import datetime, timezone
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -46,7 +49,9 @@ def run(args, cwd=None, timeout=12):
 
 
 def git(path, *args):
-    return run(['git', '-C', str(path), *args])
+    # Repository configuration must not execute a filesystem-monitor helper.
+    return run(['git', '--no-pager', '-c', 'core.fsmonitor=false',
+                '-c', 'core.hooksPath=/dev/null', '-C', str(path), *args])
 
 
 def plain(text, limit=6000):
@@ -152,7 +157,7 @@ class CodexReader:
         dbs = sorted(self.home.glob('state_*.sqlite'), key=lambda p: int(re.search(r'(\d+)\.sqlite$', p.name)[1]), reverse=True)
         if not dbs:
             raise RuntimeError('No local Codex index found. Open Codex on this Mac, then refresh.')
-        with sqlite3.connect(dbs[0].as_uri() + '?mode=ro', uri=True, timeout=3) as conn:
+        with closing(sqlite3.connect(dbs[0].as_uri() + '?mode=ro', uri=True, timeout=3)) as conn:
             conn.row_factory = sqlite3.Row
             conn.execute('PRAGMA query_only=ON')
             columns = {r['name'] for r in conn.execute('PRAGMA table_info(threads)')}
@@ -176,24 +181,29 @@ class CodexReader:
             if not any(resolved.is_relative_to((self.home / d).resolve()) for d in ('sessions', 'archived_sessions')):
                 raise ValueError('Conversation history is outside the supported local session folders.')
             stat = resolved.stat()
+            if not file_stat.S_ISREG(stat.st_mode):
+                raise ValueError('Conversation history is not a regular file.')
             budget = MAX_TAIL * (8 if deep else 1)
             key = (str(path), stat.st_mtime_ns, stat.st_size, budget)
             if key in self.cache:
                 return dict(self.cache[key])
-            with resolved.open('rb') as f:
+            fd = os.open(resolved, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, 'rb') as f:
+                if not file_stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                    raise ValueError('Conversation history is not a regular file.')
                 start = max(0, stat.st_size - budget)
                 f.seek(start)
                 if start:
-                    f.readline()
-                info = parse_events(f)
+                    f.readline(budget)
+                info = parse_events(io.BytesIO(f.read(budget)))
                 # Long command outputs can push the latest discussion out of the first window.
                 # Expand only when needed, and retain an explicit limit rather than reading a huge log.
                 if not deep and start and (not info['request'] or not info['response']):
                     start = max(0, stat.st_size - 8 * MAX_TAIL)
                     f.seek(start)
                     if start:
-                        f.readline()
-                    info = parse_events(f)
+                        f.readline(8 * MAX_TAIL)
+                    info = parse_events(io.BytesIO(f.read(8 * MAX_TAIL)))
             info['historyLimited'] = start > 0
             info['contextError'] = None
             if len(self.cache) > 1500:
@@ -345,7 +355,7 @@ class Board:
             self.scan_started = time.monotonic()
         threading.Thread(target=self._refresh, daemon=True).start()
 
-    def _refresh(self):
+    def _refresh(self, remote=True):
         self.scan_started = time.monotonic()
         try:
             if self.demo:
@@ -447,7 +457,8 @@ class Board:
                 self.documents = documents
                 self.snapshot = snapshot
                 self.error = None
-            self.delivery.refresh(snapshot)
+            if remote:
+                self.delivery.refresh(snapshot)
         except Exception as exc:
             self.error = str(exc)[:300]
             LOGGER.error('Local inventory failed: %s', type(exc).__name__)
@@ -588,7 +599,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'")
         self.end_headers()
         self.wfile.write(body)
 
@@ -708,7 +719,7 @@ def main():
     if not args.demo:
         BOARD.aliases = configuration.load(args.config)
     if args.check:
-        BOARD._refresh()
+        BOARD._refresh(remote=False)
         if BOARD.error:
             raise SystemExit(BOARD.error)
         s = BOARD.snapshot

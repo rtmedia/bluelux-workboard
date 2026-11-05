@@ -31,6 +31,8 @@ Provider extensions must declare coverage and timestamp observations. Distinguis
 
 Never introduce source-project or Codex database writes, automatic chat rollover, silent message submission or cleanup execution. A shared path is not ownership. A merge is not proof of deployment or completion of every acceptance criterion. Keep source-backed tasks in the existing project ledger. See CHARTER.md for durable product boundaries. TASKS.md is the local canonical ledger; it and tasks/lessons.md are intentionally untracked. New contributors may create their own local TASKS.md using the same filename without publishing personal workflow history.
 
-## Public release status
+## Public contributions
 
-This working copy has not been published as a new open-source release. Workboard is created by Wisam Daoud and BlueLux and distributed under the MIT License in LICENSE. Review of tracked content and Git history for personal material remains necessary before publication, even when private files are ignored. Do not attach real workspace snapshots to public issues.
+Workboard is created by Wisam Daoud and BlueLux and distributed under MIT. Submit only work you have the right to license under those terms. Use synthetic examples and check both staged content and history for private material. Security findings should use the private channel in [SECURITY.md](SECURITY.md), not public issues.
+
+Supported platform coverage and installation are documented in README.md. There is no automatic CI or signed distribution pipeline yet; run the listed checks locally and include actual results with a proposed change. Keep changes focused and preserve unknown source state.

@@ -1,6 +1,8 @@
 """Bounded, read-only Markdown roadmap adapter. Source text is data, never instructions."""
 from pathlib import Path
 import hashlib
+import os
+import stat as file_stat
 import re
 
 LIMIT = 2 * 1024 * 1024
@@ -144,11 +146,39 @@ def priority(relative):
     return (0 if Path(relative).name.lower() in ('tasks.md','agents.md','claude.md','design.md','engineering_playbook.md','readme.md') else 1 if category(relative) in ('instructions','configuration','design','plans') else 2, len(Path(relative).parts),relative)
 
 
+def safe_parts(relative):
+    path = Path(relative)
+    if path.is_absolute() or '..' in path.parts or not path.parts:
+        raise ValueError('Document path must stay within its checkout.')
+    return path.parts
+
+
+def read_safe_bytes(root, relative):
+    # Walk beneath the checkout using directory descriptors. Reject symlinks at
+    # every component, including a README pointing at an otherwise excluded file.
+    parts = safe_parts(relative)
+    directory = os.open(Path(root).resolve(), os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in parts[:-1]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        with os.fdopen(fd, 'rb') as source:
+            if not file_stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                return None
+            data = source.read(LIMIT + 1)
+            return data if len(data) <= LIMIT else None
+    finally:
+        os.close(directory)
+
+
 def read_safe(root, relative):
-    path = (Path(root) / relative).resolve()
-    if not path.is_relative_to(Path(root).resolve()) or not path.is_file() or path.stat().st_size > LIMIT:
+    try:
+        data = read_safe_bytes(root, relative)
+        return data.decode('utf-8', errors='replace') if data is not None else None
+    except (OSError, ValueError):
         return None
-    return path.read_text(encoding='utf-8', errors='replace')
 
 
 def collect(projects, workspaces, git, aliases=None):
@@ -166,6 +196,9 @@ def collect(projects, workspaces, git, aliases=None):
             warnings.setdefault(w['repoId'], []).append('Document discovery limited to 120 files per checkout.')
         for rel in paths[:120]:
             try:
+                parts = safe_parts(rel)
+                if any(Path(root, *parts[:n]).is_symlink() for n in range(1, len(parts)+1)):
+                    raise ValueError('Symlink document rejected.')
                 file_path=(Path(root)/rel).resolve()
                 if not file_path.is_relative_to(Path(root).resolve()): continue
                 stat=file_path.stat()
@@ -176,10 +209,11 @@ def collect(projects, workspaces, git, aliases=None):
                     base=cached['document']
                     documents.setdefault(base['id'],{**base,'sources':[]})['sources'].append(cached['source'])
                     continue
-                content = read_safe(root, rel)
-                if content is None:
+                raw_bytes = read_safe_bytes(root, rel)
+                if raw_bytes is None:
                     warnings.setdefault(w['repoId'], []).append('Skipped unreadable, oversized or external file: ' + rel)
                     continue
+                content = raw_bytes.decode('utf-8', errors='replace')
                 doc_id = hashlib.sha256((w['repoId']+'\0'+rel.lower()+'\0'+content).encode()).hexdigest()[:20]
                 stamp, _ = git(root, 'log', '-1', '--format=%ct%x09%H', '--', rel)
                 commit_fields = (stamp or '').strip().split('\t')
@@ -189,7 +223,6 @@ def collect(projects, workspaces, git, aliases=None):
                 tracked = tracked_error is None and bool(tracked_raw)
                 head_blob, _ = git(root, 'rev-parse', 'HEAD:' + rel)
                 head_blob = (head_blob or '').strip() or None
-                raw_bytes = (Path(root)/rel).read_bytes()
                 blob = hashlib.sha1(b'blob '+str(len(raw_bytes)).encode()+b'\0'+raw_bytes).hexdigest()
                 dirty = blob != head_blob
                 local_state = 'untracked' if not tracked else 'modified' if dirty else 'committed'
