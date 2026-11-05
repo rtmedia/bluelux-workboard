@@ -35,6 +35,6 @@ Never introduce source-project or Codex database writes, automatic chat rollover
 
 ## Public contributions
 
-Workboard is created by Wisam Daoud and BlueLux and distributed under MIT. Submit only work you have the right to license under those terms. Use synthetic examples and check both staged content and history for private material. Security findings should use the private channel in [SECURITY.md](SECURITY.md), not public issues.
+Workboard is created by [Sam Daoud](https://wisamdaoud.com) and BlueLux and distributed under MIT. Submit only work you have the right to license under those terms. Use synthetic examples and check both staged content and history for private material. Security findings should use the private channel in [SECURITY.md](SECURITY.md), not public issues.
 
 Supported platform coverage and installation are documented in README.md. There is no automatic CI or signed distribution pipeline yet; run the listed checks locally and include actual results with a proposed change. Keep changes focused and preserve unknown source state.
