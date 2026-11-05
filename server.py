@@ -37,10 +37,10 @@ NOW = lambda: datetime.now(timezone.utc).isoformat()
 ENV = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0', 'GIT_TERMINAL_PROMPT': '0', 'GH_PROMPT_DISABLED': '1'}
 
 
-def run(args, cwd=None, timeout=12):
+def run(args, cwd=None, timeout=12, input=None):
     try:
         p = subprocess.run(args, cwd=cwd, capture_output=True, text=True,
-                           errors='replace', timeout=timeout, env=ENV)
+                           errors='replace', timeout=timeout, env=ENV, input=input)
         if p.returncode:
             return None, (p.stderr.strip() or 'Command unavailable')[:260]
         return p.stdout, None
@@ -49,9 +49,32 @@ def run(args, cwd=None, timeout=12):
 
 
 def git(path, *args):
-    # Repository configuration must not execute a filesystem-monitor helper.
-    return run(['git', '--no-pager', '-c', 'core.fsmonitor=false',
-                '-c', 'core.hooksPath=/dev/null', '-C', str(path), *args])
+    # Even read-only status can execute fsmonitor and attribute filter helpers.
+    command = ['git', '--no-pager', '-c', 'core.fsmonitor=false',
+               '-c', 'core.hooksPath=/dev/null', '-C', str(path)]
+    if args and args[0] == 'status':
+        configured, error = run([*command, 'config', '--null', '--list'])
+        if error or configured is None:
+            return None, 'Cannot verify repository filter configuration; status was not inspected.'
+        filters = set()
+        for entry in configured.split('\0'):
+            match = re.match(r'^filter\.(.*)\.(?:clean|smudge|process)\n', entry)
+            if match and entry.partition('\n')[2].strip():
+                filters.add(match[1])
+        if filters:
+            tracked, error = run([*command, 'ls-files', '-z', '--cached'])
+            if error or tracked is None:
+                return None, 'Cannot verify repository filter attributes; status was not inspected.'
+            attributes, error = run([*command, 'check-attr', '-z', '--stdin', 'filter'], input=tracked)
+            if error or attributes is None:
+                return None, 'Cannot verify repository filter attributes; status was not inspected.'
+            if any(value in filters for value in attributes.split('\0')[2::3]):
+                return None, 'External Git filters apply to tracked files; status scan skipped to avoid executing helpers.'
+            # Also disable known drivers if attributes change after the check.
+            for name in filters:
+                for setting, value in (('clean', ''), ('smudge', ''), ('process', ''), ('required', 'false')):
+                    command[1:1] = ['-c', f'filter.{name}.{setting}={value}']
+    return run([*command, *args])
 
 
 def plain(text, limit=6000):

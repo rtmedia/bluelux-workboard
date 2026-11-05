@@ -32,6 +32,24 @@ class SourceSecurityTests(unittest.TestCase):
             self.assertIsNotNone(result)
             self.assertFalse(marker.exists())
 
+    def test_git_filters_make_status_unknown_without_execution(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            subprocess.run(['git', 'init', '-q', folder], check=True)
+            marker = root / 'filter-executed'
+            helper = root / 'filter.sh'
+            helper.write_text('#!/bin/sh\nprintf unsafe > "' + str(marker) + '"\n')
+            helper.chmod(0o700)
+            subprocess.run(['git', '-C', folder, 'config', 'filter.example.clean', str(helper)], check=True)
+            (root / '.gitattributes').write_text('*.txt filter=example\n')
+            (root / 'sample.txt').write_text('synthetic content')
+            blob = subprocess.check_output(['git', '-C', folder, 'hash-object', '-w', '--stdin'], input=b'synthetic content').decode().strip()
+            subprocess.run(['git', '-C', folder, 'update-index', '--add', '--cacheinfo', '100644,' + blob + ',sample.txt'], check=True)
+            result, error = server.git(root, 'status', '--porcelain')
+            self.assertIsNone(result)
+            self.assertIn('External Git filters', error)
+            self.assertFalse(marker.exists())
+
     def test_documents_reject_symlinks_traversal_and_special_files(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
