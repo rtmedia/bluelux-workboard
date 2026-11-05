@@ -6,3 +6,7 @@ __pycache__/
 preview*.jpg
 preview*.png
 *.local.json
+
+# Local development records; retain on disk, never publish new versions.
+/TASKS.md
+/tasks/lessons.md

@@ -2,7 +2,7 @@
 
 Created by **Wisam Daoud and BlueLux**. Copyright © 2026 Wisam Daoud and BlueLux. Licensed under the [MIT License](LICENSE).
 
-Product intent is defined in [CHARTER.md](CHARTER.md). The [source-of-truth plan](TASKS.md#wb-source-truth--view-only-workboard-and-source-reconciliation--done) replaces manual tracking with contextual Codex prompt handoffs, including Reconcile. The view-only controls and prompt handoffs are now implemented. [TASKS.md](TASKS.md) is the canonical ledger and contains the active [DOC-RECONCILE plan](TASKS.md#bounded-closeout-plan-for-doc-reconcile); that cross-project review remains open. This README covers usage and operations, [AGENTS.md](AGENTS.md) defines agent behavior, and [tasks/lessons.md](tasks/lessons.md) preserves corrections and superseded decisions.
+Product intent is defined in [CHARTER.md](CHARTER.md). Workboard provides view-only observations and contextual Codex prompt handoffs. This README covers usage and operations; [AGENTS.md](AGENTS.md) defines project development guidance. The local canonical ledger `TASKS.md` and personal correction notes `tasks/lessons.md` are kept on disk but intentionally excluded from Git. They are not part of a public checkout.
 
 A local dashboard across Codex chats, Git repositories, worktrees, stashes, and GitHub pull requests. No npm/pip packages or cloud deployment.
 
@@ -63,7 +63,7 @@ Python 3.10+ and Git are required. The existing GitHub CLI is optional for GitHu
 
 ## Focused roadmaps
 
-Workboard opens on **Example Project, Example Site, Example Service, Example Importer, Example Device and Workboard**. Other discovered projects are behind **Other projects**. Sidebar counts represent open recorded task items, not chat totals.
+Workboard opens on all discovered projects unless local configuration selects a smaller main scope. Other discovered projects remain behind **Other projects**. Sidebar counts represent open recorded task items, not chat totals.
 
 - **Workboard:** one action queue. Click the Resume, Cleanup, In progress or Recently completed dashboard card to filter it; Overview restores the combined view. Reconcile / verify prioritizes task-linked contradictions and recent uncertain discussions. Older unlinked uncertainty stays in History. Filters are temporary views, not saved task statuses.
 - **Roadmap:** open, in-progress, next, done and deferred filters. Click a task to read its remaining checklist, source location, directly matching task-ID conversations, and chats linked to the source checkout.
@@ -79,7 +79,7 @@ New source module: `roadmaps.py`. Verification: `python3 -m unittest -q` and `no
 
 ## File locations, definitions and version review
 
-Core projects also include **Example Importer** and **Example Device**. Workspaces show full folder paths and **Show in Finder**. The Finder action accepts only a known indexed checkout path, via a same-origin JSON request; it opens Finder without modifying project files.
+Workspaces show full folder paths and **Show in Finder**. The Finder action accepts only a known indexed checkout path, via a same-origin JSON request; it opens Finder without modifying project files.
 
 Hover, focus, or tap view names and status labels for definitions. Multiple distinct task-file contents get an amber warning on the overview and roadmap. **Review versions** lists branches, paths, open/completed item counts, differing recorded statuses, local tracking state, and a source selector. Identical copies are grouped; older distinct contents do not automatically mean unresolved merge conflicts.
 
@@ -88,9 +88,9 @@ Hover, focus, or tap view names and status labels for definitions. Multiple dist
 
 ## Permanent home and recovery
 
-Keep the application in a stable local folder so launcher and service paths continue to resolve.
+Keep the application in a stable local folder so launcher and service paths continue to resolve. Installations may use compatibility symlinks after a move; these are local setup choices, not required repository layout.
 
-The launcher starts a detached background process. Closing the browser or Codex does not control that process. The site is unavailable while the Mac is asleep or off. **Automatic login startup and restart on exit are enabled** through the user-level macOS launchd service `com.bluelux.workboard`. `Launch Workboard.command` remains a manual fallback and reuses that service. Concurrent launch attempts are locked to prevent duplicate starts.
+The launcher starts a detached background process. Closing the browser or Codex does not control that process. The site is unavailable while the Mac is asleep or off. **Automatic login startup and restart on exit can be enabled** through the user-level macOS launchd service `com.bluelux.workboard`. `Launch Workboard.command` remains a manual fallback and reuses that service. Concurrent launch attempts are locked to prevent duplicate starts.
 
 Click **Service health** in the sidebar, double-click `Check Workboard.command`, or run `python3 check_health.py`. `/api/health` checks the running service independently of source access; `/api/ready` returns 503 until a scan is ready or when degraded. The first scan can take tens of seconds; cached refreshes are faster. A scan exceeding two minutes is reported as degraded. These checks report problems; macOS launchd restarts the server if it exits. A hung but still-running process is reported as degraded and is not automatically killed.
 
@@ -98,7 +98,7 @@ Operational logs are in `.runtime/service.log`, limited to 1 MiB per file with t
 
 The Library uses an explicit configuration allowlist, including package manifests, build/lint settings, Docker and deployment files, and GitHub workflows. Markdown instructions, design documents, README files and `tasks/lessons.md` are included. Environment/credential files, lockfiles, dependency folders and generated output are excluded. Files are capped at 2 MiB and 120 candidates per checkout; any discovery limit appears as a warning. Content is displayed as escaped text and is never executed. Full-text search returns at most 60 indexed version matches.
 
-Source is saved in a local Git repository. The user approved a private GitHub source repository at `rtmedia/bluelux-workboard`; publication is recorded in TASKS.md. Runtime snapshots, chat/project data, logs, local settings and screenshots are excluded from Git. Future edits need an explicit commit and push to update this backup; Workboard never commits source projects automatically. Check the current backup state with `git status` and `git log -1` in this folder.
+Runtime snapshots, chat/project data, logs, local settings, personal task/correction records and screenshots are excluded from Git. Workboard never commits source projects automatically. Check your checkout with `git status` and `git log -1`. Ignoring a file does not erase its existing Git history.
 
 
 ## Installed desktop app
@@ -153,7 +153,7 @@ Open **Instructions** to read the current local global AGENTS.md, any AGENTS.ove
 
 **Request an instruction change** provides a preview and a copyable prompt. Add the behavior you want changed in Codex. **Copy & open** links target the chosen existing Workboard-associated chat; the association is context, not ownership. No chat is selected automatically and nothing is submitted. Safari's selection-copy fallback is supported. Reload instructions or Refresh to read subsequent source edits.
 
-Project guidance maps the local task ledger and supporting artifacts. Global machine instructions are not automatically available in other environments.
+Project AGENTS.md files can map the actual task ledger and supporting artifacts. Cloud environments need the relevant project guidance and cannot be assumed to have a local machine’s global file. Existing chats may retain earlier context. Retiring a file in one checkout does not remove copies in other worktrees.
 
 Library Configuration means build/test/runtime infrastructure, not disposable clutter. Product playbook documents are categorized by role rather than mistaken for agent instructions. Remaining CLAUDE.md copies are labeled legacy guidance; review their source checkout. Historical plans and reports require task-by-task reconciliation before retirement. Personal-tracking removal has been completed; Continue and Reconcile are implemented as prompt handoffs.
 
@@ -162,7 +162,7 @@ Library Configuration means build/test/runtime infrastructure, not disposable cl
 
 Instructions → Global Codex instructions → Development working agreement shows the lightweight framework read from `~/.codex/AGENTS.md`. Request an instruction change prepares a Codex prompt; Workboard has no settings editor or instruction-save API.
 
-Codex builds its instruction chain at the start of a run. This Workboard chat was verified to contain the new agreement in its loaded instructions on October 6, 2026. No application restart is needed for this chat to use it. In an older chat, ask Codex to read the current global and project AGENTS.md before continuing; if automatic instructions look stale, start a fresh session/run in the intended project. Restarting does not update files in old checkouts or copy this Mac's global instructions into cloud environments. See [official instruction discovery guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+Codex builds its instruction chain at the start of a run. In an older chat, ask Codex to read the current global and project AGENTS.md before continuing; if automatic instructions look stale, start a fresh session/run in the intended project. Restarting does not update files in old checkouts or copy this Mac's global instructions into cloud environments. See [official instruction discovery guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
 Verification limits: Safari prompt copying, source refresh and removed-worktree continuity have been exercised. Exact Codex links and failure fallbacks are tested, but native foreground navigation into Codex could not be visually confirmed. Instructions displays files available locally, not proof of every chat's effective instruction stack. Cloud-only chats are not covered by the local reader.
 
@@ -213,10 +213,12 @@ Local scans are requested every **30 seconds while visible** and on manual refre
 
 Without configuration, all discovered projects appear in the main scope. Copy `workboard.example.json` to the Git-ignored `workboard.local.json`, then replace its `projects` mapping with repository slugs and display names to choose your main projects. Keys match the lower-case final repository name in the origin URL, falling back to the local project name. Other discovered projects remain accessible; this is a presentation filter, not a privacy boundary. Restart the server after changing configuration. `--config /path/to/config.json` selects another file; invalid configuration fails explicitly. Existing personal project aliases were moved into the ignored local file.
 
-For a shareable preview, run `python3 server.py --demo --port 43128` and open `http://127.0.0.1:43128`. Synthetic demo mode reads no personal sources and disables GitHub/Finder actions. Normal mode still uses your local Codex index and existing optional `gh` login. No dependencies were added. See [CONTRIBUTING.md](CONTRIBUTING.md) for verification and adapter boundaries. Public release and history/privacy review remain explicit gates in [TASKS.md](TASKS.md); this change does not publish the repository. The existing macOS service retains its legacy `com.bluelux.workboard` identifier for compatibility.
+For a shareable preview, run `python3 server.py --demo --port 43128` and open `http://127.0.0.1:43128`. Synthetic demo mode reads no personal sources and disables GitHub/Finder actions. Normal mode still uses your local Codex index and existing optional `gh` login. No dependencies were added. See [CONTRIBUTING.md](CONTRIBUTING.md) for verification and adapter boundaries. Before publishing a repository, review its current files and reachable history for private content; these exclusions alone do not sanitize earlier commits. The existing macOS service retains its legacy `com.bluelux.workboard` identifier for compatibility.
 
 Design inspiration: [Omarchy](https://github.com/omacom/omarchy) for consistent workspace controls; [CodexBar](https://github.com/steipete/CodexBar) for usage windows, reset times and source freshness; [Lazygit](https://github.com/jesseduffield/lazygit) for compact summary-to-detail navigation; [btop](https://github.com/aristocratos/btop) for pauseable monitoring. These informed interaction patterns; no source code or dependencies were copied.
 
 The visual companion uses amber for input/changed work, blue for activity/context, violet for branches and teal for allowance/closeout. Dashed circles and hatched bars mean unknown or stale; labels remain available without relying on color. Count tiles are counts, not completion percentages. Context rings and usage bars use recorded measurements. Click a card for the full next step, evidence and handoff controls.
 
 **Direct chat handoff:** Continue and chat-specific Reconcile copy the scoped prompt during the click, then navigate the same window to `codex://threads/<id>`. No preview page or new tab opens on success. Paste and send in Codex yourself. A prompt preview appears only if copying or opening fails; project-wide reconciliation still asks you to choose a chat. Browser/OS external-app approval may still appear.
+
+The local `TASKS.md` remains the canonical development ledger; it is not deleted or renamed. Ignored files are excluded from Workboard’s normal Git-based document discovery, so this local-only ledger is not shown in the dashboard after untracking. Developers can read and maintain it directly.
