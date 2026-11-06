@@ -1,43 +1,43 @@
 # Workboard
 
-**Pick up where you left off—even when you don't remember where that was.**
+**Pick up where you left off across projects and coding sessions.**
 
-Workboard is a small, always-open app that brings your coding conversations, project plans and unfinished work into one place. It helps you see what needs your attention, what actually shipped, and what still needs to be finished or cleaned up.
+Workboard keeps your coding chats, project plans and unfinished work in one place. See what's done, what needs you, and what's still unfinished without keeping another task list.
 
-You start a feature in one project, review a fix in another, and leave an agent working on a third. Then a meeting happens. Or a weekend. Or you come back weeks later to a pile of chats, branches and “almost done” plans.
+You might have a feature underway in one project, a fix to review in another, and an agent working on a third. After a few interruptions or some time away, it's hard to remember where everything stands.
 
-We built Workboard for that moment. You shouldn't have to reread every conversation or remember which folder contains the latest work just to decide what to do next. Whether you're building yourself or reviewing work with others, you need a clear explanation of what's happening—not another wall of technical output.
+We built Workboard to make coming back easier. Instead of rereading every chat and opening every folder, you can see what's waiting and choose where to pick up. It helps whether you're doing the building or trying to understand the work you're reviewing.
 
 Created by **[Sam Daoud](https://wisamdaoud.com)** · [MIT license](LICENSE)
 
-## Your work, with the context attached
+## Keep track without starting over
 
-- **Return without starting over.** Find the relevant conversation, read the remaining next step, and continue with a prepared prompt. Older discussions stay searchable when you need to recover context.
-- **See what needs you.** Spot requests for input, unfinished changes and work waiting for delivery across several projects.
-- **Bring `TASKS.md` to life.** Turn the task lists and plans already in your repositories into a browsable roadmap. Review open items, remaining acceptance criteria, supporting documents and different branch versions without maintaining another copy.
-- **Separate “the agent finished talking” from “the work is finished.”** See local changes, GitHub delivery evidence and recorded task status separately. A merged fix doesn't mean every part of a larger plan is done.
-- **Review before cleaning up.** Inspect leftover branches, extra working copies and unfinished changes before asking an agent to act. Cleanup prompts call for fresh checks and preserve uncertain or shared work, helping avoid accidental deletion or picking up the wrong version.
-- **Leave a better handoff.** Prepare a checkpoint that asks the agent to reconcile the original task ledger, verification and next steps before you move to a new chat. Plans and decisions have a place to survive beyond a long conversation.
+- **Find your place.** Open the relevant chat, see what was left to do, and continue with a prepared prompt. Older conversations are searchable when you need to revisit a decision.
+- **See what needs you.** Find requests for input, unfinished changes and work waiting to be delivered across your projects.
+- **Bring `TASKS.md` to life.** Browse the task lists and plans already in your projects. See open items, what still needs checking, and the documents behind them. Compare versions without keeping another copy of the plan.
+- **Check what's actually finished.** See changes still on your computer, work delivered on GitHub and the status recorded in your task files. An agent finishing its reply doesn't mean the project is done, and one merged fix doesn't finish a whole plan.
+- **Clean up with care.** Review leftover branches, extra working copies and unfinished changes before asking an agent to act. The cleanup prompt asks it to check again and preserve anything shared or uncertain, so useful work is less likely to be thrown away.
+- **Make the next chat easier.** Prepare a handoff that asks the agent to update the project's task file with what was done, what was checked and what comes next. Important decisions shouldn't be buried in a conversation you may never reopen.
 
-**This isn't another Jira.** No new tickets to maintain, duplicate backlog or dashboard-only completion switches. Your project files remain the source of truth. Workboard makes them easier to find and review, then helps you ask your coding agent to correct the originals.
+**This isn't another Jira.** You don't need to create tickets or copy your backlog into it. Your tasks and plans stay in your project files. Workboard helps you review them and ask your coding agent to update the originals when they're out of date.
 
-It doesn't silently fix stale plans or guarantee an agent won't make a mistake. It puts the evidence and the right review prompt in reach. You review and send; Workboard never edits projects, merges branches or deletes files.
+You still review and send each prompt. Workboard doesn't update plans on its own, merge branches or delete files. It helps you make a better-informed decision before handing work back to an agent.
 
-## Small beside your work. Full context when you need it.
+## Keep it beside your work
 
-Keep it in a 320–420 px strip next to your editor or chat. Expand it to explore project documents, history and workspace details. Usage bars and context estimates help you notice when a session may need a checkpoint; unknown or stale data stays clearly labelled.
+Keep it in a narrow strip, about 320 to 420 pixels wide, next to your editor or chat. Expand it when you want to read project documents or dig into the history. Usage bars and context estimates can help you decide when to prepare a handoff. Missing or outdated readings are labelled clearly.
 
 | Compact companion | Expanded dashboard |
 | --- | --- |
 | ![Workboard in a narrow strip: Git counts, usage bars and chats needing attention](docs/images/workboard-companion.jpg) | ![Expanded Workboard: projects, delivery signals and conversations to continue](docs/images/workboard-desktop.jpg) |
 
-*Screenshots use synthetic demo data, not real projects or conversations.*
+*Screenshots show demo projects and conversations.*
 
 ## Get started: let your agent handle setup
 
-**Copy the whole prompt below into a local coding agent with terminal access.** It should install the app, help with any missing prerequisites after your approval, connect your available sources and verify your real projects—not just leave you with commands to run.
+**Copy this prompt into a local coding agent with terminal access.** Ask it to handle installation, get your approval for missing tools, and check that your real projects show up. The prompt tells it to finish the setup rather than leave you with a list of commands.
 
-Today, Workboard supports **macOS with local Codex history**, plus optional GitHub access. The setup agent can help install missing tools, but you'll still need to approve installations and complete any sign-in. Other agents' histories and cloud-only chats aren't supported yet. This is a local view of available work, not a shared team-monitoring service.
+Workboard currently supports **macOS with local Codex history** and optional GitHub access. You'll need to approve any installations and complete sign-in yourself. It doesn't yet read other agents' chats or cloud-only conversations, and it isn't a shared dashboard for monitoring a team.
 
 ```text
 Install and configure Workboard from https://github.com/rtmedia/workboard on
@@ -102,7 +102,7 @@ Workboard starts with the supported local Codex index and saved session paths un
 
 If a project is missing, open/use its checkout in local Codex, let Codex save it, then refresh. Separate clones must each be discovered. Archived chats remain searchable but don't independently trigger a scan of every old folder. Project labels in `workboard.local.json` change display scope, not discovery.
 
-Task views depend on the documents actually available: supported Markdown statuses and checklists can be shown, but not every agent's task format or every cloud plan. Ignored task files aren't indexed. Conflicting versions stay reviewable; Workboard doesn't invent an authoritative answer from the newest timestamp.
+Workboard reads supported Markdown task lists and checklists from the files it finds. It can't read every agent's task format or plans stored only in the cloud, and Git-ignored task files aren't included. If versions disagree, you can compare them. The newest file isn't automatically treated as correct.
 
 There is no whole-computer scan, manual folder picker, account-wide GitHub importer or other-agent history adapter yet. Other Git hosts can provide local Git state, but not remote PR evidence. GitHub Enterprise and custom SSH host aliases aren't recognized. Codex format changes may require an adapter update.
 
@@ -121,14 +121,14 @@ Open **http://127.0.0.1:43127**. Initial discovery may take a minute or more; `p
 
 For a custom data location, prefix diagnosis and startup with `CODEX_HOME="/absolute/path/to/codex-home"`. Optional GitHub sign-in uses `gh auth login --hostname github.com --web`. Normal mode can use an existing login automatically; private/org access still depends on its permissions.
 
-## A few things worth knowing
+## Useful details
 
 - **Refresh:** local scans every 30 seconds while visible; background GitHub checks use a five-minute cache. Pause affects this window only.
-- **Privacy:** no analytics, extra LLM calls or runtime packages. The local app can display private chats and documents and has no authentication—do not expose it publicly. Use demo mode for screenshots. Display filters and the privacy curtain aren't access controls.
+- **Privacy:** no analytics, extra LLM calls or runtime packages. The local app can display private chats and documents and has no authentication. Keep it private on your computer. Use demo mode for screenshots. Display filters and the privacy curtain aren't access controls.
 - **Missing evidence:** `doctor.py` checks setup. Missing history, unavailable GitHub access and unknown usage are not treated as zero or complete. File-status scans won't execute external Git filters such as Git LFS.
 - **Background operation:** `launch.py` starts the macOS background server; `service.py enable` opts into login startup and `service.py disable` stops the managed service. Closing the browser alone doesn't stop a background server. Launcher/service use port 43127.
 - **Updates:** review changes, use `git pull --ff-only` on a clean checkout, then restart your exact server. Preserve local work if Git refuses. Recheck service settings if Python, PATH or CODEX_HOME changes.
 
-See [SECURITY.md](SECURITY.md) for private vulnerability reporting and [CONTRIBUTING.md](CONTRIBUTING.md) for tests and adapter boundaries.
+See [SECURITY.md](SECURITY.md) for private vulnerability reporting and [CONTRIBUTING.md](CONTRIBUTING.md) for testing and contribution guidance.
 
 MIT licensed. Copyright © 2026 Sam Daoud and BlueLux. Design inspiration: [Omarchy](https://github.com/omacom/omarchy), [CodexBar](https://github.com/steipete/CodexBar), [Lazygit](https://github.com/jesseduffield/lazygit) and [btop](https://github.com/aristocratos/btop); no code was copied.
