@@ -139,6 +139,7 @@ function render({preserveScroll=false}={}){
   body+=workspaces().length?`<table class="workspace-table"><thead><tr><th>Project / folder</th><th>Current branch</th><th>File state</th><th>Recommended next step</th></tr></thead><tbody>${workspaces().map(w=>`<tr><td><button class="workspace-name" data-workspace="${esc(w.path)}">${esc(name(w.repoId))} / ${esc(w.label)}</button><code class="workspace-path">${esc(w.path)}</code><small>${w.primary||w.label==='Primary checkout'?'Primary project folder · keep':'Extra checkout'} · ${w.chatIds.length} historical chat links</small><div class="workspace-actions"><button class="text-button" data-reveal="${esc(w.path)}">Show in Finder ↗</button><span class="reveal-status" role="status"></span></div></td><td><code>${esc(w.branch)}</code></td><td>${statusBadge(w)}<small>${w.fileCount?`${w.fileCount} changed entries`:w.error?'Check access':'No pending changes'}</small></td><td class="workspace-decision">${workspaceRecommendation(w)}</td></tr>`).join('')}</tbody></table>`:empty('No Git checkout in this view','Discussions remain available in History.');
  }
  if(isCompanion()&&!state.fullView&&state.view==='overview'&&state.boardFilter==='all')body=companionBoard();
+ if(state.query.trim()&&['overview','chats'].includes(state.view))body=chatSearchResults();
  body=signalToolbar()+body;
  const expanded=new Set([...document.querySelectorAll('[data-queue][open]')].map(e=>e.dataset.queue));
  $('#content').innerHTML=body;document.querySelectorAll('[data-queue]').forEach(e=>e.open=expanded.has(e.dataset.queue));decorateHelp();if(state.view==='plans')scheduleDocumentSearch();
@@ -174,16 +175,33 @@ async function showGitHub(id){
 }
 function sourceInfo(){state.detail='sources';openDetail('ABOUT WORKBOARD','Live sources, clear boundaries',`<p>This app reads your local Codex projects and saved conversations, then checks their Git repositories. There are no saved workflow choices or personal task notes. Status comes from source evidence. Continue, Reconcile and Cleanup prepare prompts to copy into an existing Codex chat; they never send messages. Project task files remain authoritative. It does not edit your code, start chats, or clean up files. Show in Finder reveals only an indexed workspace folder on this Mac.</p><div class="detail-section"><h3>Codex</h3><p>Exact saved chat names and recent user/assistant messages come from the local Codex index and conversation logs. This is a read-only compatibility adapter for ${esc(state.data?.source?.schema||'the installed Codex version')}; a future Codex update may require an adapter update.</p><p>Turn status reflects the latest saved event. It is not a live process monitor. Cloud-only and ordinary ChatGPT chats are not included.</p></div><div class="detail-section"><h3>Git</h3><p>Projects are grouped by GitHub origin where available. All registered worktrees are inspected. File status is read fresh; ahead/behind uses cached remote references. Ignored files and independent folders never seen by Codex are outside this inventory.</p></div><div class="detail-section"><h3>GitHub</h3><p>Check GitHub uses your existing gh sign-in to retrieve the current default branch, open PRs, and recent merges. Unavailable data stays marked unavailable.</p></div><div class="detail-section"><h3>Task files and plans</h3><p>Projects are selected through optional local configuration; without configuration all discovered projects appear. Other projects are still available in the sidebar. Roadmaps use explicit Markdown statuses, milestone tables and top-level checklists. Historical archive sections and duplicate task IDs are excluded. Supporting plans are browsable references, not added to the main task count.</p><p>Identical documents across checkouts are grouped. The default TASKS version prefers the primary project ledger; otherwise it uses the newest local file commit. It is not guaranteed to match live GitHub; select another version in Roadmap when needed. Local edits are marked. Documents are limited to 2 MB and discovery to 120 matching document/configuration files per checkout; ignored/generated/archive folders are excluded.</p></div><div class="detail-section"><h3>Refresh and privacy</h3><p>Local data refreshes every 30 seconds while the page is open, or when you click Refresh. Delivery checks run in the background for core repositories, with a five-minute GitHub cache. Check delivery now bypasses that cache. Other detailed GitHub checks run on request. The server listens only on this Mac. There is no cloud upload, analytics, or additional AI call.</p></div>`);}
 
-async function poll(){
- if(state.paused)return;
- try{const r=await fetch('/api/state');if(!r.ok)throw Error(`HTTP ${r.status}`);const result=await r.json();if(state.paused)return;$('#refresh').disabled=result.refreshing;$('#compactRefresh').disabled=result.refreshing;$('#refresh span').textContent=result.refreshing?'Refreshing…':'Refresh';$('#banner').innerHTML=result.error?`<div class="notice error">${esc(result.error)}${result.data?' Showing the previous scan.':''}</div>`:'';const deliveryChanged=JSON.stringify(state.delivery)!==JSON.stringify(result.delivery||{repositories:[]});observeDelivery(result.delivery||{repositories:[]});state.delivery=result.delivery||{repositories:[]};if(result.data&&(result.data.checkedAt!==state.data?.checkedAt||deliveryChanged)){observeChanges(result.data);state.data=result.data;for(const [pid,id] of Object.entries(state.sourceOverrides)){if(!doc(id))delete state.sourceOverrides[pid]}render({preserveScroll:true})}if(state.data)renderCompanionHeader();if(result.refreshing||result.delivery?.refreshing)setTimeout(poll,1800);else if(!result.data)$('#content').innerHTML=empty('Unable to read local sources',result.error||'Open Codex, then try Refresh.');}catch{$('#banner').innerHTML='<div class="notice error">The local server is unavailable. Reopen Launch Workboard.command to reconnect.</div>';$('#refresh').disabled=false;$('#compactRefresh').disabled=false;if(state.data)renderCompanionHeader();}
+async function poll(manual=false){
+ if(state.paused&&!manual)return;
+ try{const r=await fetch('/api/state',{signal:AbortSignal.timeout(15000),cache:'no-store'});if(!r.ok)throw Error(`HTTP ${r.status}`);const result=await r.json();if(state.paused&&!manual)return;state.refreshing=result.refreshing;$('#refresh').disabled=false;$('#compactRefresh').disabled=false;$('#refresh span').textContent=result.refreshing?'Refreshing…':'Refresh';$('#banner').innerHTML=result.error?`<div class="notice error">${esc(result.error)}${result.data?' Showing the previous scan.':''}</div>`:'';const deliveryChanged=JSON.stringify(state.delivery)!==JSON.stringify(result.delivery||{repositories:[]});observeDelivery(result.delivery||{repositories:[]});state.delivery=result.delivery||{repositories:[]};if(result.data&&(result.data.checkedAt!==state.data?.checkedAt||deliveryChanged)){observeChanges(result.data);state.data=result.data;for(const [pid,id] of Object.entries(state.sourceOverrides)){if(!doc(id))delete state.sourceOverrides[pid]}render({preserveScroll:true})}if(state.data)renderCompanionHeader();if(result.refreshing||result.delivery?.refreshing)setTimeout(()=>poll(manual),1800);else if(!result.data)$('#content').innerHTML=empty('Unable to read local sources',result.error||'Open Codex, then try Refresh.');}catch{$('#banner').innerHTML='<div class="notice error">The local server is unavailable. Reopen Launch Workboard.command to reconnect.</div>';$('#refresh').disabled=false;$('#compactRefresh').disabled=false;if(state.data)renderCompanionHeader();}
 }
-async function refresh(){if(state.paused)return;if(state.view==='instructions')loadInstructions();try{await fetch('/api/refresh',{method:'POST'});poll()}catch{poll()}}
+let refreshPending=false,lastAutomaticRefresh=0;
+async function refresh(manual=false){
+ if((state.paused&&!manual)||refreshPending)return;
+ refreshPending=true;
+ state.refreshing=true;if(state.data)renderCompanionHeader();
+ try{if(state.view==='instructions')loadInstructions();const response=await fetch('/api/refresh',{method:'POST',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('Refresh failed');}
+ catch{/* Poll still checks for a completed scan or reports connection failure. */}
+ finally{refreshPending=false;await poll(manual);}
+}
+function catchUp(){
+ if(document.hidden||state.paused||Date.now()-lastAutomaticRefresh<1000)return;
+ lastAutomaticRefresh=Date.now();
+ refresh();
+}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-project],[data-view],[data-chat],[data-workspace],[data-github],[data-task],[data-document],[data-status]');if(!b)return;if(b.dataset.project){$('#detail').close();state.project=b.dataset.project;if(b.dataset.goRoadmap)state.view='roadmap';if(b.dataset.goPlans)state.view='plans';render()}else if(b.dataset.view){state.view=b.dataset.view;render()}else if(b.dataset.chat)showChat(b.dataset.chat);else if(b.dataset.workspace)showWorkspace(b.dataset.workspace);else if(b.dataset.github)showGitHub(b.dataset.github);else if(b.dataset.task)showTask(b.dataset.taskProject,b.dataset.task);else if(b.dataset.document)showDocument(b.dataset.document,Number(b.dataset.documentLine||0));else if(b.dataset.status){state.statusFilter=b.dataset.status;render()}});
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('.chat-card,[role="button"][data-workspace]')){e.preventDefault();e.target.click()}});
 $('#moreProjects').addEventListener('click',()=>{state.moreProjects=!state.moreProjects;render()});
-$('#search').addEventListener('input',e=>{state.query=e.target.value;render()});$('#archives').addEventListener('change',e=>{state.archives=e.target.checked;render()});$('#refresh').addEventListener('click',refresh);$('#sourceInfo').addEventListener('click',sourceInfo);$('#closeDetail').addEventListener('click',()=>{$('#detail').close();state.detail=null});$('#detail').addEventListener('close',()=>{state.detail=null});
-poll();setInterval(()=>{if(!document.hidden)refresh()},30000);
+$('#search').addEventListener('input',e=>{state.query=e.target.value;render()});$('#archives').addEventListener('change',e=>{state.archives=e.target.checked;render()});$('#refresh').addEventListener('click',()=>refresh(true));$('#sourceInfo').addEventListener('click',sourceInfo);$('#closeDetail').addEventListener('click',()=>{$('#detail').close();state.detail=null});$('#detail').addEventListener('close',()=>{state.detail=null});
+poll();setInterval(catchUp,30000);
+document.addEventListener('visibilitychange',catchUp);
+window.addEventListener('focus',catchUp);
+window.addEventListener('pageshow',catchUp);
+window.addEventListener('online',catchUp);
 
 // Optional agent access to the same read-only dashboard data, in supporting browsers.
 if(document.modelContext?.registerTool){
@@ -401,7 +419,7 @@ async function copyWorkflowPrompt(id){const field=$('#workflowPrompt');if(!field
 }
 document.addEventListener('click',e=>{const review=e.target.closest('[data-reconcile-chat]');if(review)directWorkflowHandoff('reconcile-chat',review.dataset.reconcileChat);const resume=e.target.closest('[data-resume-chat]'),reconcile=e.target.closest('[data-reconcile-project]'),open=e.target.closest('[data-workflow-open]');if(resume){const t=state.data.threads.find(t=>t.id===resume.dataset.resumeChat);directWorkflowHandoff(t&&discussionStatus(t).bucket==='review'?'reconcile-chat':'continue',resume.dataset.resumeChat);}if(reconcile)showWorkflowPrompt('reconcile',reconcile.dataset.reconcileProject);if(open)copyWorkflowPrompt(open.dataset.workflowOpen);if(e.target.closest('[data-workflow-copy]'))copyWorkflowPrompt();});
 
-function historyRows(list){return `<div class="activity-list">${list.map(t=>`<button class="activity-row" data-chat="${esc(t.id)}"><span class="activity-mark">↗</span><span><span class="discussion-projects">${discussionProjects(t)}</span><strong>${esc(t.title)}</strong><small>${esc(excerpt(t).text.slice(0,190))}</small></span><time>${esc(when(t.lastMessageAt||t.updatedAt))}</time></button>`).join('')}</div>`;}
+function historyRows(list){return `<div class="activity-list">${list.map(t=>`<button class="activity-row" data-chat="${esc(t.id)}"><span class="activity-mark">↗</span><span><span class="discussion-projects">${discussionProjects(t)}</span><strong>${esc(t.title)}${t.archived?' · Archived':''}</strong><small>${esc(excerpt(t).text.slice(0,190))}</small></span><time>${esc(when(t.lastMessageAt||t.updatedAt))}</time></button>`).join('')}</div>`;}
 function showCheckoutReview(path){
  const w=state.data.workspaces.find(w=>w.path===path);if(!w)return;
  const p=project(w.repoId),proof=(state.delivery.repositories||[]).find(r=>r.repoId===w.repoId),decision=WorkboardFocus.workspaceDecision(w,state.delivery.repositories);
@@ -434,7 +452,7 @@ function renderCompanionHeader(){
  if($('#compactProject').innerHTML!==options)$('#compactProject').innerHTML=options;
  $('#compactProject').value=state.project;$('#compactView').value=state.view;
  const stale=!state.data.checkedAt||Date.now()-Date.parse(state.data.checkedAt)>120000;
- $('#compactFreshness').textContent=(stale?'Source scan is stale · ':'Local scan · ')+date(state.data.checkedAt);
+ $('#compactFreshness').textContent=(state.refreshing?'Scanning… · previous scan ':state.paused?'Paused · last scan ':stale?'Source scan is stale · ':'Local scan · ')+date(state.data.checkedAt);
  $('#compactFreshness').classList.toggle('stale',stale);
 }
 const companionOrder=new Map();
@@ -459,7 +477,7 @@ function companionBoard(){
 }
 $('#compactProject').addEventListener('change',e=>{state.project=e.target.value;state.boardFilter='all';render();});
 $('#compactView').addEventListener('change',e=>{state.view=e.target.value;state.boardFilter='all';render();});
-$('#compactRefresh').addEventListener('click',refresh);
+$('#compactRefresh').addEventListener('click',()=>refresh(true));
 $('#compactExpand').addEventListener('click',()=>{state.fullView=!state.fullView;render();});
 compactViewport?.addEventListener('change',()=>{if(state.data)render();});
 
@@ -528,8 +546,8 @@ function showChanges(){
 }
 function showJump(){
  state.detail='jump';openDetail('QUICK JUMP','Projects, chats & branches','<label for="jumpQuery">Search</label><input id="jumpQuery" type="search" autocomplete="off"><div id="jumpResults"></div>');
- const input=$('#jumpQuery');const draw=()=>{const q=input.value.toLowerCase(),ps=state.data.projects.filter(p=>name(p.id).toLowerCase().includes(q)),ts=state.data.threads.filter(t=>!t.archived&&t.title.toLowerCase().includes(q));
- $('#jumpResults').innerHTML=ps.slice(0,8).map(p=>`<button class="signal-row" data-jump-project="${esc(p.id)}">Project · ${esc(name(p.id))}</button>`).join('')+ts.slice(0,8).map(t=>`<button class="signal-row" data-chat="${esc(t.id)}">Chat · ${esc(t.title)}</button>`).join('')+state.data.workspaces.filter(w=>[w.branch,name(w.repoId)].join(' ').toLowerCase().includes(q)).slice(0,8).map(w=>`<button class="signal-row" data-workspace="${esc(w.path)}">Checkout · ${esc(name(w.repoId))} / ${esc(w.branch)}</button>`).join('')+(state.delivery.repositories||[]).flatMap(r=>Object.values(r.pullRequests||{})).filter(p=>[p.title,p.branch,p.url].join(' ').toLowerCase().includes(q)&&/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+$/.test(p.url||'')).slice(0,8).map(p=>`<a class="signal-row" href="${esc(p.url)}" target="_blank" rel="noreferrer">PR · ${esc(p.title||p.branch)} · ${esc(p.state)} (observed)</a>`).join('');};input.addEventListener('input',draw);draw();input.focus();
+ const input=$('#jumpQuery');const draw=()=>{const q=input.value.toLowerCase(),ps=state.data.projects.filter(p=>name(p.id).toLowerCase().includes(q)),ts=chatSearchMatches(q);
+ $('#jumpResults').innerHTML=ps.slice(0,8).map(p=>`<button class="signal-row" data-jump-project="${esc(p.id)}">Project · ${esc(name(p.id))}</button>`).join('')+ts.slice(0,8).map(t=>`<button class="signal-row" data-chat="${esc(t.id)}">${t.archived?'Archived chat':'Chat'} · ${esc(t.title)}</button>`).join('')+state.data.workspaces.filter(w=>[w.branch,name(w.repoId)].join(' ').toLowerCase().includes(q)).slice(0,8).map(w=>`<button class="signal-row" data-workspace="${esc(w.path)}">Checkout · ${esc(name(w.repoId))} / ${esc(w.branch)}</button>`).join('')+(state.delivery.repositories||[]).flatMap(r=>Object.values(r.pullRequests||{})).filter(p=>[p.title,p.branch,p.url].join(' ').toLowerCase().includes(q)&&/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+$/.test(p.url||'')).slice(0,8).map(p=>`<a class="signal-row" href="${esc(p.url)}" target="_blank" rel="noreferrer">PR · ${esc(p.title||p.branch)} · ${esc(p.state)} (observed)</a>`).join('');};input.addEventListener('input',draw);draw();input.focus();
 }
 document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'&&state.data&&!document.body.classList.contains('private-screen')){e.preventDefault();showJump();}});
 document.addEventListener('click',e=>{
@@ -569,17 +587,33 @@ function signalIcon(kind){
 }
 function visualBar(value,label,tone='blue',stale=false){
  const known=typeof value==='number'&&Number.isFinite(value),n=known?Math.max(0,Math.min(100,value)):0;
- return `<div class="usage-line ${known?tone:'unknown'} ${stale?'stale':''}"><div><span>${esc(label)}</span><strong>${known?Math.round(n)+'%':'?'}${stale?' · old':''}</strong></div><div class="usage-track" role="img" aria-label="${esc(label)}: ${known?Math.round(n)+' percent':'unknown'}${stale?', stale snapshot':''}">${known?`<i style="width:${n}%"></i>`:''}</div></div>`;
+ return `<div class="usage-line ${known?tone:'unknown'} ${stale?'stale':''}"><div><span>${esc(label)}</span><strong>${known?Math.round(n)+'%':'?'}${stale?' · old':''}</strong></div><div class="usage-track" role="img" aria-label="${esc(label)}: ${known?Math.round(n)+' percent':'unknown'}${stale?', stale snapshot':''}">${known?`<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><rect width="${n}" height="6" rx="3"/></svg>`:''}</div></div>`;
 }
 function visualRing(value,tone='blue',label='Context estimate'){
  const known=typeof value==='number'&&Number.isFinite(value),n=known?Math.max(0,Math.min(100,value)):0;
  return `<span class="visual-ring ${known?tone:'unknown'}" title="${esc(label)}: ${known?Math.round(n)+' percent':'unknown'}" role="img" aria-label="${esc(label)}: ${known?Math.round(n)+' percent':'unknown'}"><svg viewBox="0 0 40 40" aria-hidden="true"><circle class="ring-track" cx="20" cy="20" r="16"/><circle class="ring-value" cx="20" cy="20" r="16" pathLength="100" stroke-dasharray="${n} 100"/></svg><b>${known?Math.round(n)+'%':'?'}</b></span>`;
 }
 function visualUsage(sessions){
- const ts=threads(),t=ts.filter(t=>t.telemetry).sort((a,b)=>Date.parse(b.telemetry.observedAt)-Date.parse(a.telemetry.observedAt))[0],health=t?WorkboardSignals.session(t):null,w=t?WorkboardSignals.quota(t)[0]:null;
- return `<button class="visual-usage" data-signal-sessions aria-label="Session activity, context and allowance details"><div class="usage-heading"><span>${signalIcon('pulse')}<strong>${sessions}</strong> recent</span><small>${t?esc(when(t.telemetry.observedAt)):'No telemetry'} ${signalIcon('arrow')}</small></div><div class="usage-bars">${visualBar(health?.context??null,'Context used',health?.context>=75?'amber':'blue',health?.stale)}${visualBar(w?.remaining??null,'Allowance left',w?.remaining<20?'amber':'teal',w?.stale)}</div><small class="usage-foot">${t?'Estimate · account unverified':'Unknown ≠ zero'} · details ↗</small></button>`;
+ const t=threads().filter(t=>t.telemetry?.windows?.length).sort((a,b)=>Date.parse(b.telemetry.observedAt)-Date.parse(a.telemetry.observedAt))[0];
+ const windows=t?WorkboardSignals.quota(t):[],w=windows.filter(w=>!w.stale&&w.remaining!==null).sort((a,b)=>a.remaining-b.remaining)[0]||windows[0];
+ const minutes=w&&!w.stale?Math.max(0,Math.ceil((w.resetsAt*1000-Date.now())/60000)):null;
+ const reset=minutes===null?'Unknown':minutes<60?minutes+'m':Math.floor(minutes/60)+'h '+minutes%60+'m';
+ const windowLabel=w?.minutes?w.minutes>=1440?(w.minutes/1440)+'d window':w.minutes>=60?(w.minutes/60)+'h window':w.minutes+'m window':'Reported window';
+ return `<button class="visual-usage" data-signal-sessions aria-label="Reported allowance and reset details"><div class="usage-heading"><span>${signalIcon('pulse')}<strong>${sessions}</strong> recent</span><small>${t?esc(when(t.telemetry.observedAt)):'No telemetry'} ${signalIcon('arrow')}</small></div><div class="usage-bars">${visualBar(w?.remaining??null,'Allowance left',w?.remaining<20?'amber':'teal',w?.stale)}<div class="usage-line"><div><span>Resets in</span><strong>${reset}</strong></div><small>${esc(windowLabel)}</small></div></div><small class="usage-foot">${t?'Reported · account unverified':'Unknown ≠ zero'} · details ↗</small></button>`;
 }
 function visualActivity(list){return '<div class="visual-activity">'+list.map(t=>{
  const status=discussionStatus(t),h=WorkboardSignals.session(t),attention=Boolean(WorkboardSignals.needsYou(t)),tone=attention?'amber':h.current?'blue':'violet';
  return `<button class="visual-chat ${tone}" data-chat="${esc(t.id)}"><div class="visual-chat-main"><small><i class="status-orbit" aria-hidden="true"></i>${esc(t.projectIds.map(name).join(' · '))}<time>${esc(when(t.lastMessageAt||t.updatedAt))}</time></small><strong>${esc(t.title)}</strong><span class="visual-chat-status">${attention?'Needs your input':esc(status.label)} ${signalIcon('arrow')}</span></div>${visualRing(h.context,h.stale?'unknown':h.context>=75?'amber':'blue',h.stale?'Stale context estimate':'Context estimate')}</button>`;
  }).join('')+'</div>';}
+
+function chatSearchMatches(query){
+ const words=query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+ return (state.data?.threads||[]).filter(t=>state.project==='all'||t.projectIds.includes(state.project)).filter(t=>{
+  const text=[t.title,t.request,t.response,t.searchText,t.cwd,...t.projectIds.map(name)].join(' ').toLowerCase();
+  return words.every(word=>text.includes(word));
+ });
+}
+function chatSearchResults(){
+ const list=chatSearchMatches(state.query);
+ return `<section class="companion-section"><h2>Chats · ${list.length}</h2><p class="detail-note">${state.project==='all'?'All indexed projects':'Selected project'} · includes archived. Titles and recent saved messages, up to 64K characters from the scanned log tail (1–8 MB). Archived chats: titles/previews only. Not full-history search.</p>${list.length?historyRows(list):empty('No matching chats','Try fewer words or select All core projects to search every indexed project.')}</section>`;
+}

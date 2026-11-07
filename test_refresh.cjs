@@ -1,0 +1,36 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('static/app.js','utf8');
+const listeners={},calls=[];
+let resolveRequest,now=10000;
+const context={state:{paused:false,view:'board'},document:{hidden:false,addEventListener:(k,v)=>listeners[k]=v},window:{addEventListener:(k,v)=>listeners[k]=v},Date:{now:()=>now},AbortSignal,fetch:(url,options)=>{calls.push({url,options});return new Promise(resolve=>resolveRequest=resolve)},poll:async()=>calls.push('poll'),setInterval:fn=>listeners.timer=fn};
+vm.createContext(context);
+vm.runInContext(source.slice(source.indexOf('let refreshPending='),source.indexOf("document.addEventListener('click',e=>{const b=e.target.closest('[data-project]")),context);
+vm.runInContext(source.slice(source.indexOf('poll();setInterval(catchUp'),source.indexOf('// Optional agent access')),context);
+(async()=>{
+ calls.length=0;
+ listeners.focus();listeners.visibilitychange();listeners.online();
+ assert.equal(calls.length,1,'wake events coalesce');
+ assert.equal(calls[0].url,'/api/refresh');assert(calls[0].options.signal);
+ resolveRequest({});await new Promise(setImmediate);
+ assert.equal(calls.at(-1),'poll');
+ now+=30000;context.document.hidden=true;listeners.timer();assert.equal(calls.length,2);
+ context.document.hidden=false;context.state.paused=true;listeners.focus();assert.equal(calls.length,2);
+ context.fetch=async()=>{throw Error('offline')};
+ await vm.runInContext('refresh(true)',context);assert.equal(calls.length,3,'manual refresh works while paused');
+ context.state.paused=false;
+ await vm.runInContext('refresh()',context);assert.equal(calls.length,4,'failed request still polls');
+ await vm.runInContext('refresh()',context);assert.equal(calls.length,5,'failed request releases guard');
+ context.esc=String;
+ vm.runInContext(source.slice(source.indexOf('function visualBar('),source.indexOf('function visualRing(')),context);
+ const bar=vm.runInContext("visualBar(14,'Allowance left')",context);
+ assert(bar.includes('rect width="14"'));assert(!bar.includes('style='));
+ assert(!vm.runInContext("visualBar(null,'Unknown')",context).includes('<rect'));
+ console.log('Refresh recovery and CSP-safe proportional bar checks pass.');
+})().catch(e=>{console.error(e);process.exitCode=1});
+// Search must not bury archived/non-core matches in workflow groups.
+const searchContext={state:{project:'all',data:{threads:[{id:'1',title:'Older Login',archived:true,projectIds:['other'],cwd:''},{id:'2',title:'Current',projectIds:['core'],cwd:'',searchText:'Earlier message about a privacy policy'}]}},name:x=>x};
+vm.createContext(searchContext);
+vm.runInContext(source.slice(source.indexOf('function chatSearchMatches('),source.indexOf('function chatSearchResults(')),searchContext);
+assert.equal(vm.runInContext("chatSearchMatches('login older')[0].id",searchContext),'1');
+assert.equal(vm.runInContext("chatSearchMatches('policy privacy')[0].id",searchContext),'2');
+searchContext.state.project='core';assert.equal(vm.runInContext("chatSearchMatches('login').length",searchContext),0);

@@ -110,7 +110,7 @@ def local_path(value):
 def parse_events(lines):
     """Read only public message/event types, never reasoning or command output."""
     out = {'request': '', 'response': '', 'workdirs': [], 'turnState': 'unknown',
-           'lastEventAt': None, 'lastMessageAt': None, 'requestAt': None, 'responseAt': None, 'prs': [], 'commits': [], 'telemetry': None, 'compactionsObserved': 0, 'lastActivityAt': None, 'model': None}
+           'lastEventAt': None, 'lastMessageAt': None, 'requestAt': None, 'responseAt': None, 'prs': [], 'commits': [], 'telemetry': None, 'compactionsObserved': 0, 'lastActivityAt': None, 'model': None, 'searchText': ''}
     for line in lines:
         try:
             d = json.loads(line)
@@ -124,6 +124,17 @@ def parse_events(lines):
         typ = p.get('type')
         kind = d.get('type')
         stamp = d.get('timestamp')
+        searchable = ''
+        if kind == 'event_msg' and typ == 'user_message':
+            searchable = request_text(p.get('message', ''))
+        elif kind == 'event_msg' and typ == 'task_complete':
+            searchable = plain(p.get('last_agent_message', ''))
+        elif kind == 'response_item' and typ == 'message' and (p.get('role') == 'user' or (p.get('role') == 'assistant' and p.get('phase') in ('final', 'final_answer'))):
+            content = '\n'.join(c.get('text', '') for c in p.get('content', []) if isinstance(c, dict) and isinstance(c.get('text', ''), str))
+            if not content.startswith(('# AGENTS.md instructions', '<environment_context>')):
+                searchable = request_text(content) if p.get('role') == 'user' else plain(content)
+        if searchable:
+            out['searchText'] = (out['searchText'] + '\n' + searchable)[-65536:]
         if kind == 'compacted':
             out['compactionsObserved'] += 1
         if kind == 'turn_context' and isinstance(p.get('model'), str):
@@ -451,7 +462,7 @@ class Board:
                 t = {'id': row['id'], 'title': title, 'cwd': row['cwd'], 'archived': bool(row['archived']),
                      'pinned': bool(row.get('is_pinned')), 'updatedAt': row['updated_at'], 'projectIds': project_ids,
                      'request': ctx.get('request') or request_text(row.get('first_user_message') or row.get('preview', '')),
-                     'requestIsRecent': bool(ctx.get('request')), 'response': ctx.get('response', ''),
+                     'searchText': ctx.get('searchText', ''), 'requestIsRecent': bool(ctx.get('request')), 'response': ctx.get('response', ''),
                      'turnState': ctx.get('turnState', 'unknown'), 'lastEventAt': ctx.get('lastEventAt'),
                      'lastMessageAt': ctx.get('lastMessageAt'), 'historyLimited': ctx.get('historyLimited', False),
                      'requestAt': ctx.get('requestAt'), 'responseAt': ctx.get('responseAt'),

@@ -123,7 +123,9 @@ For a custom data location, prefix diagnosis and startup with `CODEX_HOME="/abso
 
 ## Useful details
 
-- **Refresh:** local scans every 30 seconds while visible; background GitHub checks use a five-minute cache. Pause affects this window only.
+- **Search:** chat search shows matches directly, including archived titles and all indexed projects when no project is selected. It matches all entered words in titles, paths and recent saved messages: up to 64K characters, with each message excerpt capped at 6K, from the scanned 1–8 MB log tail. Archived chats have title/preview coverage only. This is not full-history search.
+- **Usage:** the compact summary shows the lowest remaining allowance among fresh reported windows from the latest snapshot, with that window’s reset countdown. Account identity is unverified. Context estimates stay on individual chats; costs and purchasable tokens are not inferred.
+- **Refresh:** local scans every 30 seconds while visible, with an immediate catch-up when you return to the window or reconnect; background GitHub checks use a five-minute cache. Pause affects automatic updates in this window only; the header refresh button still requests a scan and shows scanning feedback.
 - **Privacy:** no analytics, extra LLM calls or runtime packages. The local app can display private chats and documents and has no authentication. Keep it private on your computer. Use demo mode for screenshots. Display filters and the privacy curtain aren't access controls.
 - **Missing evidence:** `doctor.py` checks setup. Missing history, unavailable GitHub access and unknown usage are not treated as zero or complete. File-status scans won't execute external Git filters such as Git LFS.
 - **Background operation:** `launch.py` starts the macOS background server; `service.py enable` opts into login startup and `service.py disable` stops the managed service. Closing the browser alone doesn't stop a background server. Launcher/service use port 43127.
