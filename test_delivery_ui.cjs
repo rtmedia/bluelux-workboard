@@ -189,7 +189,7 @@ console.log('Synthetic demo renders all six views without host data.');
 vm.runInContext("state.view='overview';state.fullView=false;compactViewport.matches=true;render();",context);
 html=elements.get('#content').innerHTML;
 assert(html.includes('visual-metrics'));assert(html.includes('visual-chat'));assert(html.includes('visual-ring'));
-assert(html.includes('Resets in'));assert(!html.includes('Context used:'));assert(html.includes('Allowance left: 72 percent'));
+assert(html.includes('Renews in'));assert(!html.includes('Context used:'));assert(html.includes('Allowance left: 72 percent'));
 assert(html.includes('GitHub coverage incomplete; 0 open PRs observed'));assert(html.includes('Context estimate: unknown'));
 assert(html.includes('aria-label="Hide screen"'));assert(!html.includes('Remaining: this needs your approval before implementation.'));
 assert(vm.runInContext("visualBar(null,'Missing')",context).includes('Missing: unknown'));
@@ -216,4 +216,11 @@ console.log('Visual companion checks pass: measured bars, unknown versus zero, s
 
 vm.runInContext(`state.query='';state.data.threads[0].telemetry={observedAt:new Date().toISOString(),windows:[{usedPercent:30,minutes:300,resetsAt:Date.now()/1000+3600},{usedPercent:90,minutes:10080,resetsAt:Date.now()/1000+7200}]};`,context);
 html=vm.runInContext('visualUsage(1)',context);
-assert(html.includes('10%'));assert(html.includes('Resets in'));assert(html.includes('7d window'));assert(!html.includes('Context used'));
+assert(html.includes('10%'));assert(html.includes('Renews in'));assert(html.includes('Weekly allowance'));assert(!html.includes('Context used'));
+
+vm.runInContext(`state.accountUsage={data:{observedAt:new Date().toISOString(),windows:[],credits:{balance:123.45},resets:{availableCount:2,items:[{expiresAt:null},{expiresAt:1}]}}}`,context);
+html=vm.runInContext('accountUsagePanel()',context);
+assert(html.includes('123.45'));assert(html.includes('Saved resets · 2'));assert(html.includes('Expiry unknown'));assert(html.includes('Expired since this check'));assert(html.includes('Credit expiry is not exposed'));
+assert(vm.runInContext('visualUsage(0)',context).includes('Saved resets'));
+vm.runInContext('state.accountUsage.error="unavailable"',context);
+assert(vm.runInContext('visualUsage(0)',context).includes('old snapshot'));

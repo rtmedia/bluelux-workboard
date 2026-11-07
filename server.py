@@ -25,6 +25,7 @@ import instructions
 import reliability
 import delivery
 import telemetry
+import account_usage
 import configuration
 import logging
 
@@ -369,6 +370,7 @@ class Board:
         self.demo = False
         self.aliases = None
         self.reader = CodexReader()
+        self.usage = account_usage.Monitor(CODEX_HOME)
         self.delivery = delivery.Monitor(run, git)
         self.lock = threading.Lock()
         self.snapshot = None
@@ -503,7 +505,9 @@ class Board:
     def state(self):
         if not self.snapshot and not self.refreshing:
             self.refresh()
-        return {'data': self.snapshot, 'refreshing': self.refreshing, 'error': self.error,
+        if not self.demo:
+            self.usage.refresh()
+        return {'data': self.snapshot, 'accountUsage': self.usage.state() if not self.demo else None, 'refreshing': self.refreshing, 'error': self.error,
                 'delivery': self.delivery.state()}
 
     def detail(self, thread_id):
