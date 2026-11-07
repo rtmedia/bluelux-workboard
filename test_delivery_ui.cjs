@@ -224,3 +224,21 @@ assert(html.includes('123.45'));assert(html.includes('Saved resets · 2'));asser
 assert(vm.runInContext('visualUsage(0)',context).includes('Saved resets'));
 vm.runInContext('state.accountUsage.error="unavailable"',context);
 assert(vm.runInContext('visualUsage(0)',context).includes('old snapshot'));
+
+// Saved-reset reminder: urgency boundaries, honest partial/stale data, no-zero noise.
+const expiryNow=Date.parse('2026-11-06T12:00:00Z');
+function expiryCard(hours,{count=1,failed=false,old=false,items}={}){
+ context.expiryFixture={observedAt:new Date(expiryNow-(old?11*60e3:0)).toISOString(),resets:{availableCount:count,items:items??[{expiresAt:(expiryNow+hours*3600e3)/1000}]}};
+ return vm.runInContext(`resetExpiryBadge(expiryFixture,${failed},${expiryNow})`,context);
+}
+assert(expiryCard(169).includes('reset-expiry normal'));
+assert(expiryCard(168).includes('reset-expiry soon'));
+assert(expiryCard(48).includes('reset-expiry urgent'));
+assert(expiryCard(-1).includes('expired'));
+assert(expiryCard(1,{old:true}).includes('reset-expiry unknown'));
+assert(expiryCard(1,{failed:true}).includes('>old</b>'));
+assert.equal(expiryCard(1,{count:0}),'');
+assert(expiryCard(1,{items:[{expiresAt:null}]}).includes('Reset expiry unknown'));
+assert(expiryCard(1,{count:2}).includes('Known reset expires'));
+assert(expiryCard(1,{items:[{expiresAt:(expiryNow+10*86400e3)/1000},{expiresAt:(expiryNow+3600e3)/1000}],count:2}).includes('>1h</b>'));
+console.log('Compact reset expiry checks pass: boundaries, earliest expiry, missing details, zero and stale data.');

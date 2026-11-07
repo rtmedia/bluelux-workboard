@@ -101,3 +101,5 @@ body.private-screen>:not(#privacyCurtain){display:none!important}
 #handoffStatus:not(:empty){position:fixed;bottom:16px;left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);width:max-content;box-sizing:border-box;padding:12px 16px;border-radius:10px;background:#203653;color:white;box-shadow:0 4px 24px #172b4d33;z-index:10000;font-size:12px}
 
 .usage-balances{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#5c6d89}.usage-balances b{color:#263650}.usage-line small{font-size:10px}
+
+.reset-expiry{display:flex;align-items:center;gap:6px;margin-top:9px;padding:6px 8px;border:1px solid transparent;border-radius:7px;font-size:11px;line-height:1.4;text-align:left}.reset-expiry svg{width:14px;height:14px;flex-shrink:0}.reset-expiry>span{flex:1;min-width:0;overflow-wrap:anywhere}.reset-expiry b{white-space:nowrap}.reset-expiry.normal{color:#52647d;background:#f1f4f9}.reset-expiry.soon{color:#875000;background:#fff2d8;border-color:#e8b95e}.reset-expiry.urgent{color:#a32924;background:#fff0ef;border-color:#df8b85}.reset-expiry.unknown{color:#68768c;background:#f6f7fa;border:1px dashed #aab4c3}
