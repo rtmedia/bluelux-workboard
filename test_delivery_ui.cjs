@@ -170,7 +170,7 @@ state.data.threads=[{id:'signal',title:'Approval <needed>',cwd:'/repo',projectId
 compactViewport.matches=true;state.fullView=false;render();`,context);
 html=elements.get('#content').innerHTML;
 assert(html.includes('Needs you'));assert(html.includes('Approval &lt;needed&gt;'));
-assert(html.includes('data-signal-git'));assert(html.includes('data-pause'));
+assert(html.includes('data-safety-filter'));assert(html.includes('data-pause'));
 vm.runInContext("showSessions();",context);
 html=elements.get('#detailBody').innerHTML;
 assert(html.includes('80% context estimate'));assert(html.includes('Cost unknown'));
@@ -190,12 +190,43 @@ vm.runInContext("state.view='overview';state.fullView=false;compactViewport.matc
 html=elements.get('#content').innerHTML;
 assert(html.includes('visual-metrics'));assert(html.includes('visual-chat'));assert(html.includes('visual-ring'));
 assert(html.includes('Renews in'));assert(!html.includes('Context used:'));assert(html.includes('Allowance left: 72 percent'));
-assert(html.includes('GitHub coverage incomplete; 0 open PRs observed'));assert(html.includes('Context estimate: unknown'));
+assert(html.includes('open pull requests found; coverage may be incomplete'));assert(html.includes('Context estimate: unknown'));
 assert(html.includes('aria-label="Hide screen"'));assert(!html.includes('Remaining: this needs your approval before implementation.'));
 assert(vm.runInContext("visualBar(null,'Missing')",context).includes('Missing: unknown'));
 assert(vm.runInContext("visualBar(0,'Zero')",context).includes('Zero: 0 percent'));
 assert(vm.runInContext("visualBar(50,'Old','blue',true)",context).includes('stale snapshot'));
 console.log('Visual companion checks pass: measured bars, unknown versus zero, stale labels, compact cards and accessible icon controls.');
+
+// Plain-language safety review must not turn stale/mismatched evidence into delivery claims.
+vm.runInContext(`
+var safetySaved={data:state.data,delivery:state.delivery,project:state.project};
+var safetyNow=new Date().toISOString();
+state.data={...demoFixture,workspaces:[{...demoFixture.workspaces[0],head:'tip',path:'/demo/atlas',fileCount:2,chatIds:['one'],primary:false}]};
+state.delivery={repositories:[{repoId:'atlas',checkedAt:safetyNow,defaultCommit:'main',defaultBranch:'main',stashes:0,units:[{id:'atlas:topic',branch:'topic',sha:'tip',published:'included',state:'outside',paths:['/demo/atlas'],openPRs:[],blockers:[]}]}]};
+`,context);
+assert.equal(vm.runInContext('folderSafety(state.data.workspaces[0]).uploaded',context),true);
+assert.equal(vm.runInContext('folderSafety(state.data.workspaces[0]).merged',context),false);
+vm.runInContext("state.delivery.repositories[0].units[0].sha='older-tip'",context);
+assert.equal(vm.runInContext('folderSafety(state.data.workspaces[0]).uploaded',context),false);
+assert.equal(vm.runInContext('folderSafety(state.data.workspaces[0]).uploadReview',context),true);
+vm.runInContext("state.delivery.repositories[0].units[0].sha='tip';state.delivery.repositories[0].checkedAt='2000-01-01'",context);
+assert.equal(vm.runInContext('folderSafety(state.data.workspaces[0]).uploaded',context),false);
+vm.runInContext(`state.delivery.repositories[0].checkedAt=safetyNow;state.delivery.repositories[0].units[0].state='included';state.delivery.repositories[0].units[0].published='absent';`,context);
+assert.equal(vm.runInContext('folderSafety(state.data.workspaces[0]).uploaded',context),true,'merged work is uploaded even if its old branch was removed');
+vm.runInContext(`state.data.threads=Array.from({length:6},(_,i)=>({...demoFixture.threads[0],id:'parallel-'+i,title:'Parallel '+i,turnState:'started',lastActivityAt:safetyNow,workspacePaths:['/demo/atlas']}));`,context);
+html=vm.runInContext('companionBoard()',context);
+for(let i=0;i<6;i++)assert(html.includes('Parallel '+i));
+assert(!html.includes('Show 3 more'));assert(html.includes('Shared folder · parallel chats'));
+vm.runInContext("showSignalGit('edits','atlas')",context);
+html=elements.get('#detailBody').innerHTML;assert(html.includes('Edits not yet committed'));assert(html.includes('/demo/atlas'));assert(html.includes('data-checkout-review'));assert(!html.includes('changed entries'));
+vm.runInContext("showWorkspace('/demo/atlas')",context);
+html=elements.get('#detailBody').innerHTML;assert(html.includes('saved on disk'));assert(html.includes('Deployment is separate'));
+vm.runInContext("showBranchReview('atlas:topic')",context);
+assert(elements.get('#workflowPrompt').value.includes('Do not commit, push, merge, deploy, delete'));
+assert(elements.get('#workflowPrompt').value.includes('"branch": "topic"'));
+assert(!elements.get('#detailBody').innerHTML.includes('Garden'));
+vm.runInContext('state.data=safetySaved.data;state.delivery=safetySaved.delivery;state.project=safetySaved.project;',context);
+console.log('Safety review checks pass: exact fresh evidence, merged/deployed distinction, shared folders, visible active chats and guarded branch handoff.');
 
 (async()=>{
  const copied=[];context.navigator={clipboard:{writeText:async text=>copied.push(text)}};
